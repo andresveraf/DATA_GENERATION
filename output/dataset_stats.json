@@ -1,0 +1,82 @@
+{
+  "dataset_info": {
+    "purpose": "Latin American Customer NER Training",
+    "train_size": 5000,
+    "dev_size": 1000,
+    "total_size": 6000,
+    "countries": [
+      "Chile",
+      "Argentina",
+      "Brazil",
+      "Uruguay",
+      "Mexico"
+    ],
+    "languages": [
+      "Spanish",
+      "Portuguese"
+    ],
+    "entity_types": [
+      "CUSTOMER_NAME",
+      "ID_NUMBER",
+      "ADDRESS",
+      "PHONE_NUMBER",
+      "EMAIL",
+      "AMOUNT",
+      "SEQ_NUMBER"
+    ]
+  },
+  "train_stats": {
+    "total_examples": 5000,
+    "countries": {
+      "CL": 1000,
+      "AR": 1000,
+      "BR": 1000,
+      "UY": 1000,
+      "MX": 1000
+    },
+    "modes": {
+      "contact_only": 1620,
+      "full": 335,
+      "addr_only": 2702,
+      "id_only": 222,
+      "financial_only": 121
+    },
+    "entities": {
+      "CUSTOMER_NAME": 5000,
+      "PHONE_NUMBER": 1955,
+      "EMAIL": 1955,
+      "ADDRESS": 6074,
+      "ID_NUMBER": 557,
+      "AMOUNT": 456,
+      "SEQ_NUMBER": 412
+    },
+    "failed_spans": 44
+  },
+  "dev_stats": {
+    "total_examples": 1000,
+    "countries": {
+      "CL": 200,
+      "AR": 200,
+      "BR": 200,
+      "UY": 200,
+      "MX": 200
+    },
+    "modes": {
+      "contact_only": 311,
+      "full": 72,
+      "addr_only": 557,
+      "id_only": 42,
+      "financial_only": 18
+    },
+    "entities": {
+      "CUSTOMER_NAME": 1000,
+      "PHONE_NUMBER": 383,
+      "EMAIL": 383,
+      "ADDRESS": 1258,
+      "ID_NUMBER": 114,
+      "AMOUNT": 90,
+      "SEQ_NUMBER": 79
+    },
+    "failed_spans": 11
+  }
+}
