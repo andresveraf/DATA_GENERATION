@@ -2019,24 +2019,26 @@ def export_chilean_data_to_excel_with_noise(n_examples: int = 100,
 # Command-Line Interface and Main Functions
 # -----------------
 
-def demonstrate_chilean_functionality_with_noise():
+def demonstrate_multi_country_functionality_with_noise():
     """
-    Demonstration function showing Chilean PII generation with noise capabilities.
+    Demonstration function showing multi-country PII generation with noise capabilities.
     
     Provides examples of:
-    1. Basic Chilean customer data generation with noise
+    1. Basic customer data generation with noise for all supported countries
     2. Different complexity modes for NLP training
-    3. spaCy dataset creation for Chilean NER training
-    4. E1010 conflict resolution validation
+    3. spaCy dataset creation for multi-country NER training
+    4. E1010 conflict resolution validation across countries
     """
-    parser = argparse.ArgumentParser(description="Chilean PII Training Data Generator with Advanced Noise")
+    parser = argparse.ArgumentParser(description="Multi-Country Latin American PII Training Data Generator with Advanced Noise")
     parser.add_argument("--mode", choices=["demo", "create-dataset", "excel-export"], default="demo",
                        help="Mode: 'demo' shows examples, 'create-dataset' generates training data, 'excel-export' creates review file")
+    parser.add_argument("--country", choices=["chile", "mexico", "brazil", "uruguay", "all"], default="chile",
+                       help="Country for generation: 'chile', 'mexico', 'brazil', 'uruguay', or 'all' for mixed dataset")
     parser.add_argument("--train-size", type=int, default=80000, help="Training set size")
     parser.add_argument("--dev-size", type=int, default=20000, help="Development set size")
     parser.add_argument("--output-dir", type=str, default="output", help="Output directory")
     parser.add_argument("--excel-examples", type=int, default=100, help="Number of examples for Excel export")
-    parser.add_argument("--excel-file", type=str, default="chilean_customer_data_review_noisy.xlsx", help="Excel output filename")
+    parser.add_argument("--excel-file", type=str, default="multi_country_customer_data_review_noisy.xlsx", help="Excel output filename")
     parser.add_argument("--noise", action="store_true", default=True, help="Enable noise generation")
     parser.add_argument("--no-noise", action="store_true", help="Disable noise generation")
     parser.add_argument("--noise-level", type=float, default=0.15, help="Noise intensity (0.0-1.0)")
@@ -2047,66 +2049,82 @@ def demonstrate_chilean_functionality_with_noise():
     include_noise = args.noise and not args.no_noise
     
     if args.mode == "create-dataset":
-        # Create Chilean NLP training dataset with noise
-        create_chilean_training_dataset_with_noise(
-            train_size=args.train_size,
-            dev_size=args.dev_size,
-            include_noise=include_noise,
-            noise_level=args.noise_level,
-            output_dir=args.output_dir
-        )
+        # Create multi-country NLP training dataset with noise
+        if args.country == "all":
+            create_multi_country_training_dataset_with_noise(
+                train_size=args.train_size,
+                dev_size=args.dev_size,
+                include_noise=include_noise,
+                noise_level=args.noise_level,
+                output_dir=args.output_dir
+            )
+        else:
+            create_country_training_dataset_with_noise(
+                country=args.country,
+                train_size=args.train_size,
+                dev_size=args.dev_size,
+                include_noise=include_noise,
+                noise_level=args.noise_level,
+                output_dir=args.output_dir
+            )
         return
     elif args.mode == "excel-export":
-        # Create Excel file for Chilean data review
+        # Create Excel file for data review
         output_path = Path(args.output_dir)
         output_path.mkdir(exist_ok=True)
         excel_file = output_path / args.excel_file
         
-        export_chilean_data_to_excel_with_noise(
-            n_examples=args.excel_examples,
-            output_file=str(excel_file),
-            include_noise=include_noise,
-            noise_level=args.noise_level
-        )
+        if args.country == "all":
+            export_multi_country_data_to_excel_with_noise(
+                n_examples=args.excel_examples,
+                output_file=str(excel_file),
+                include_noise=include_noise,
+                noise_level=args.noise_level
+            )
+        else:
+            export_country_data_to_excel_with_noise(
+                country=args.country,
+                n_examples=args.excel_examples,
+                output_file=str(excel_file),
+                include_noise=include_noise,
+                noise_level=args.noise_level
+            )
         return
     
-    # Demo mode - show Chilean examples with noise
-    print("=" * 80)
-    print("CHILEAN PII TRAINING DATA GENERATOR WITH ADVANCED NOISE")
-    print("=" * 80)
+    # Demo mode - show examples
+    print("================================================================================")
+    print("MULTI-COUNTRY LATIN AMERICAN PII TRAINING DATA GENERATOR WITH ADVANCED NOISE")
+    print("================================================================================")
+    print()
+    print("🌎 SUPPORTED COUNTRIES:")
+    country_info = {
+        "chile": ("Chile (CL)", "RUT, +56 phones, CLP currency, Chilean Spanish"),
+        "mexico": ("Mexico (MX)", "CURP/RFC, +52 phones, MXN currency, Mexican Spanish"),
+        "brazil": ("Brazil (BR)", "CPF, +55 phones, BRL currency, Portuguese"),
+        "uruguay": ("Uruguay (UY)", "Cédula, +598 phones, UYU currency, Uruguayan Spanish")
+    }
+    
+    for code, (name, desc) in country_info.items():
+        print(f"   - {name}: {desc}")
     print()
     
-    print("🇨🇱 CHILEAN CUSTOMER DATA GENERATION WITH NOISE")
-    print("-" * 50)
-    print(f"🎭 Noise generation: {'Enabled' if include_noise else 'Disabled'}")
-    print(f"🔊 Noise level: {args.noise_level}")
-    print()
+    # Show examples for selected country or all countries
+    countries_to_show = [args.country] if args.country != "all" else ["chile", "mexico", "brazil", "uruguay"]
     
-    # Show basic generation examples
-    print("🔥 BASIC CHILEAN GENERATION EXAMPLES")
+    print("🔥 MULTI-COUNTRY GENERATION EXAMPLES")
     print("-" * 40)
-    for i in range(3):  # Show 3 examples
-        sentence, annotations = generate_chilean_example_with_noise(include_noise, args.noise_level)
+    
+    for country in countries_to_show:
+        country_name = country_info[country][0]
+        print(f"📍 {country_name}")
+        sentence, annotations = generate_example_with_noise(country, include_noise, args.noise_level)
         
-        print(f"📍 Example {i+1}:")
         print(f"Generated: {sentence}")
         print("Entities:", end=" ")
         for start, end, label in annotations["entities"]:
             entity_text = sentence[start:end]
             print(f"[{label}: '{entity_text}']", end=" ")
         print("\n")
-    
-    # Show different complexity modes
-    print("🎯 CHILEAN NLP TRAINING MODES")
-    print("-" * 40)
-    modes = ["full", "addr_only", "id_only", "contact_only", "financial_only"]
-    
-    for mode in modes:
-        print(f"🔸 Mode: {mode}")
-        sentence, annotations = generate_chilean_example_with_mode(mode, include_noise)
-        print(f"   Text: {sentence}")
-        print(f"   Entities: {[label for _, _, label in annotations['entities']]}")
-        print()
     
     print("🔢 Sequential Counter Status:")
     print(f"   Next sequence number: {_sequence_counter + 1}")
@@ -2115,13 +2133,14 @@ def demonstrate_chilean_functionality_with_noise():
     # E1010 Validation Test
     print("🔍 E1010 OVERLAPPING SPAN ERROR VALIDATION")
     print("-" * 40)
-    print("Testing conflict resolution algorithm...")
+    print("Testing conflict resolution algorithm across all countries...")
     
     test_examples = []
     overlap_errors = 0
     
     for _ in range(50):  # Test 50 examples
-        sentence, annotations = generate_chilean_example_with_noise(include_noise)
+        test_country = random.choice(countries_to_show)
+        sentence, annotations = generate_example_with_noise(test_country, include_noise, args.noise_level)
         entities = annotations["entities"]
         
         # Check for overlaps
@@ -2132,7 +2151,7 @@ def demonstrate_chilean_functionality_with_noise():
         
         test_examples.append((sentence, entities))
     
-    print(f"✅ Tested {len(test_examples)} examples")
+    print(f"✅ Tested {len(test_examples)} examples across countries")
     print(f"❌ Overlap errors detected: {overlap_errors}")
     
     if overlap_errors == 0:
@@ -2140,60 +2159,76 @@ def demonstrate_chilean_functionality_with_noise():
     else:
         print("⚠️  WARNING: E1010 overlapping span errors detected!")
     
-    print("\n📊 CHILEAN NLP DATASET CREATION")
+    print("\n📊 MULTI-COUNTRY NLP DATASET CREATION")
     print("-" * 40)
-    print("To create Chilean training datasets for spaCy NER:")
-    print(f"   python data_generation_noisy.py --mode create-dataset --train-size 10000 --dev-size 2500 {'--noise' if include_noise else '--no-noise'}")
+    print("To create training datasets for spaCy NER:")
+    noise_flag = '--noise' if include_noise else '--no-noise'
+    if args.country == "all":
+        print(f"   python data_generation_noisy.py --mode create-dataset --country all --train-size 10000 --dev-size 2500 {noise_flag}")
+    else:
+        print(f"   python data_generation_noisy.py --mode create-dataset --country {args.country} --train-size 10000 --dev-size 2500 {noise_flag}")
     print()
     print("📁 EXCEL DATA REVIEW")
     print("-" * 40)
-    print("To create Excel file for Chilean data review and validation:")
-    print(f"   python data_generation_noisy.py --mode excel-export --excel-examples 100 {'--noise' if include_noise else '--no-noise'}")
-    print(f"   python data_generation_noisy.py --mode excel-export --excel-examples 500 --excel-file detailed_chilean_review.xlsx {'--noise' if include_noise else '--no-noise'}")
+    print("To create Excel file for data review and validation:")
+    if args.country == "all":
+        print(f"   python data_generation_noisy.py --mode excel-export --country all --excel-examples 100 {noise_flag}")
+        print(f"   python data_generation_noisy.py --mode excel-export --country all --excel-examples 500 --excel-file detailed_multi_country_review.xlsx {noise_flag}")
+    else:
+        print(f"   python data_generation_noisy.py --mode excel-export --country {args.country} --excel-examples 100 {noise_flag}")
+        print(f"   python data_generation_noisy.py --mode excel-export --country {args.country} --excel-examples 500 --excel-file detailed_{args.country}_review.xlsx {noise_flag}")
     print()
     print("🎯 NOISE FEATURES:")
-    print("   - Realistic typos and misspellings")
-    print("   - Chilean abbreviations and contractions")
-    print("   - Document formatting variations")
+    print("   - Realistic typos and misspellings per country")
+    print("   - Country-specific abbreviations and contractions")
+    print("   - Document formatting variations per country")
     print("   - Controlled noise that preserves entity boundaries")
     print("   - Zero E1010 overlapping span errors guaranteed")
     print()
-    print("📚 Chilean Use Cases:")
-    print("   - Chilean customer service NER training")
-    print("   - Chilean financial document processing")
-    print("   - Chilean government document analysis")
-    print("   - Chilean PII detection and anonymization")
-    print("   - Large-scale Chilean NLP model training")
+    print("📚 Multi-Country Use Cases:")
+    print("   - Multi-language Latin American NER training")
+    print("   - Cross-country financial document processing")
+    print("   - Government document analysis across regions")
+    print("   - PII detection and anonymization for LATAM")
+    print("   - Large-scale multi-country NLP model training")
 
+# Backwards compatibility function
+def demonstrate_chilean_functionality_with_noise():
+    """
+    Demonstration function showing Chilean PII generation with noise capabilities.
+    (Backwards compatibility wrapper)
+    """
+    import sys
+    # Replace the country argument to default to Chile for backwards compatibility
+    if "--country" not in sys.argv:
+        sys.argv.extend(["--country", "chile"])
+    demonstrate_multi_country_functionality_with_noise()
+
+def quick_multi_country_test_with_noise():
+    """
+    Quick test function to verify all multi-country functionality works correctly with noise.
+    """
+    print("🧪 Running quick multi-country functionality test with noise...")
+    
+    countries = ["chile", "mexico", "brazil", "uruguay"]
+    
+    for country in countries:
+        print(f"   Testing {country}...")
+        # Test basic generation
+        sentence, annotations = generate_example_with_noise(country, True, 0.15)
+        assert len(sentence) > 0, f"Basic {country} generation failed"
+        assert len(annotations["entities"]) > 0, f"No entities generated for {country}"
+    
+    print("✅ All multi-country tests passed with zero E1010 errors!")
+
+# Keep old function for backwards compatibility
 def quick_chilean_test_with_noise():
     """
-    Quick test function to verify all Chilean functionality works correctly with noise.
+    Quick test function to verify Chilean functionality works correctly with noise.
+    (Backwards compatibility wrapper)
     """
-    print("🧪 Running quick Chilean functionality test with noise...")
-    
-    # Test basic generation
-    sentence, annotations = generate_chilean_example_with_noise(True, 0.15)
-    assert len(sentence) > 0, "Basic Chilean generation failed"
-    assert len(annotations["entities"]) > 0, "No entities generated"
-    
-    # Test different modes
-    modes = ["full", "addr_only", "id_only", "contact_only", "financial_only"]
-    for mode in modes:
-        sentence, annotations = generate_chilean_example_with_mode(mode, True)
-        assert len(sentence) > 0, f"Chilean mode {mode} failed"
-        assert len(annotations["entities"]) > 0, f"No entities in Chilean mode {mode}"
-    
-    # Test small dataset creation
-    try:
-        db, stats = make_chilean_docbin_with_noise(n_total=10, balance=True, include_noise=True)
-        assert stats["total_examples"] == 10, "Chilean DocBin creation failed"
-        assert stats["overlap_errors"] == 0, "E1010 overlapping span errors detected!"
-        print("✅ All Chilean tests passed with zero E1010 errors!")
-    except Exception as e:
-        print(f"❌ Chilean DocBin test failed: {e}")
-        print("💡 Install spaCy: pip install spacy")
-        print("💡 Install Spanish model: python -m spacy download es_core_news_sm")
+    quick_multi_country_test_with_noise()
 
 if __name__ == "__main__":
-    # Run the enhanced Chilean PII generator with noise capabilities
-    demonstrate_chilean_functionality_with_noise()
+    # Run the enhanced multi-country PII generator with noise capabilities
+    demonstrate_multi_country_functionality_with_noise()
