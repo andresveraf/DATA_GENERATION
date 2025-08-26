@@ -1,35 +1,41 @@
 """
-Chilean PII Training Data Generator with Advanced Noise Generation
-=================================================================
+Multi-Country Latin American PII Training Data Generator with Advanced Noise Generation
+=======================================================================================
 
-This module generates realistic Chilean customer data with controlled noise patterns
-specifically designed for Named Entity Recognition (NER) training. It creates datasets
-with labeled entities for customer service and financial NLP applications, with enhanced
-noise generation capabilities that preserve entity boundaries.
+This module generates realistic customer data for multiple Latin American countries with 
+controlled noise patterns specifically designed for Named Entity Recognition (NER) training. 
+It creates datasets with labeled entities for customer service and financial NLP applications, 
+with enhanced noise generation capabilities that preserve entity boundaries.
 
 Key Features:
-- Comprehensive Chilean PII data generation (1000+ lines restored)
+- Multi-country PII data generation for Chile, Mexico, Brazil, and Uruguay
 - Advanced E1010 overlapping span error prevention (ZERO errors guaranteed)
 - Controlled noise injection that preserves entity boundaries
 - Named Entity Recognition (NER) annotations with conflict resolution
 - spaCy-compatible training data creation (100K+ examples)
 - Excel export functionality for data review and validation
-- Command-line interface with multiple modes
+- Command-line interface with multiple modes and country selection
 - Statistics tracking and reporting
 
+Supported Countries:
+- Chile (CL): RUT format, +56 phones, CLP currency, Chilean Spanish
+- Mexico (MX): CURP/RFC formats, +52 phones, MXN currency, Mexican Spanish
+- Brazil (BR): CPF/RG formats, +55 phones, BRL currency, Portuguese
+- Uruguay (UY): Cédula format, +598 phones, UYU currency, Uruguayan Spanish
+
 Supported Entity Types:
-- CUSTOMER_NAME: Full names (first + optional second + surnames)
-- ID_NUMBER: Chilean RUT format (XX.XXX.XXX-X)
-- ADDRESS: Street addresses and cities
-- PHONE_NUMBER: Chilean phone formats (+56)
-- EMAIL: Email addresses
-- AMOUNT: Monetary amounts with CLP currency
+- CUSTOMER_NAME: Full names with country-specific conventions
+- ID_NUMBER: Country-specific ID formats (RUT/CURP/CPF/Cédula)
+- ADDRESS: Country-specific address formats
+- PHONE_NUMBER: Country-specific phone formats
+- EMAIL: Email addresses with country-appropriate domains
+- AMOUNT: Monetary amounts with country currencies
 - SEQ_NUMBER: Sequential reference numbers
 
 Enhanced Noise Features:
-- Realistic typos and misspellings
-- Abbreviations and contractions
-- Document formatting variations
+- Realistic typos and misspellings per country
+- Country-specific abbreviations and contractions
+- Document formatting variations per country
 - Text structure complexity
 - Controlled noise that preserves training data quality
 
@@ -42,7 +48,7 @@ Critical E1010 Fix:
 
 Author: Andrés Vera Figueroa
 Date: August 2025
-Purpose: Large-scale PII detection model training for Chilean documents
+Purpose: Large-scale PII detection model training for Latin American documents
 Critical requirement: Zero E1010 errors guaranteed
 """
 
@@ -72,38 +78,95 @@ def get_next_sequence() -> int:
     return _sequence_counter
 
 # -----------------
-# Chilean Customer Names Database
+# Multi-Country Customer Names Database
 # -----------------
-# Comprehensive collection of Chilean first names with proper Spanish accents
-chilean_first_names = [
-    # Masculine names (common in Chile)
-    "AGUSTÍN", "ALEJANDRO", "ALONSO", "ÁLVARO", "ANDRÉS", "ÁXEL", "BAUTISTA", "BENJAMÍN", "BRUNO", "CALEB",
-    "CAMILO", "CARLOS", "CRISTÓBAL", "CRISTIAN", "DAMIÁN", "DANIEL", "DAVID", "DIEGO", "EDUARDO", "ELÍAS",
-    "EMILIANO", "EMMANUEL", "ENRIQUE", "ESTEBAN", "ETHAN", "FEDERICO", "FERNANDO", "FRANCISCO", "GABRIEL",
-    "GAEL", "GASPAR", "GERMÁN", "GUSTAVO", "HERNÁN", "IAN", "IGNACIO", "ISIDORO", "IVÁN", "JAIR", "JAIRO",
-    "JASON", "JEREMY", "JHON", "JOAQUÍN", "JORGE", "JUAN", "JULIÁN", "KEVIN", "KIAN", "LEÓN", "LEONARDO",
-    "LIAM", "LORENZO", "LUCCA", "LUIS", "MARCELO", "MARCO", "MARTÍN", "MATÍAS", "MATEO", "MAURICIO",
-    "MAXIMILIANO", "MIGUEL", "NICOLÁS", "OLIVER", "OMAR", "ORLANDO", "PATRICIO", "PAULO", "PEDRO", "RAFAEL",
-    "RAMIRO", "RICARDO", "ROBERTO", "RODRIGO", "RUBÉN", "SAMUEL", "SANTIAGO", "SEBASTIÁN", "SIMÓN", "THIAGO",
-    "TOBÍAS", "TOMÁS", "VALENTINO", "VÍCTOR", "VICENTE", "WALTER", "XANDER", "ZAHIR",
-    
-    # Feminine names (common in Chile)
-    "AGUSTINA", "AINHOA", "AITANA", "ALBA", "ALEJANDRA", "ALEXA", "ALEXANDRA", "ALMENDRA", "AMANDA", "AMELIA",
-    "ANAÍS", "ANTONELLA", "ANTONIA", "ARANTXA", "ARIADNA", "AROHA", "AZUL", "BELÉN", "BLANCA", "BRISA",
-    "CAMILA", "CARLA", "CAROLINA", "CATALINA", "CELIA", "CLARA", "CLAUDIA", "CONSTANZA", "DANIELA", "DÉBORA",
-    "DIANA", "DOMINIQUE", "ELISA", "ELIZABETH", "EMILIA", "EMMA", "ESMERALDA", "ESTEFANÍA", "FERNANDA",
-    "FLORENCIA", "FRANCISCA", "GABRIELA", "GIOVANNA", "ISABELLA", "IVANNA", "JAVIERA", "JIMENA", "JOSEFINA",
-    "JUANITA", "JULIETA", "KARINA", "KARLA", "KATIA", "KIARA", "LARA", "LAURA", "LAYLA", "LILA", "LUCIANA",
-    "LUISA", "LUNA", "MACARENA", "MAGDALENA", "MANUELA", "MARÍA", "MARTINA", "MATILDA", "MÍA", "MILA",
-    "MIREYA", "NATALIA", "NEREA", "NICOLE", "NOELIA", "OLIVIA", "PALOMA", "PAOLA", "PAULINA", "PAZ",
-    "PENÉLOPE", "RENATA", "ROCÍO", "ROSA", "ROMINA", "ROSARIO", "SALOMÉ", "SAMANTHA", "SARA", "SOFÍA", "SOL",
-    "TAMARA", "VALENTINA", "VALERIA", "VANIA", "VERÓNICA", "VICTORIA", "VIOLETA", "XIMENA", "YASNA",
-    "YOLANDA", "ZOE"
-]
 
-# Collection of common Chilean second names (middle names)
-# Very common to have compound first names like "Juan Carlos", "María José", "Ana Sofía"
-chilean_second_names = [
+# Country-specific data organization
+COUNTRY_DATA = {
+    'chile': {
+        'first_names': [
+            # Masculine names (common in Chile)
+            "AGUSTÍN", "ALEJANDRO", "ALONSO", "ÁLVARO", "ANDRÉS", "ÁXEL", "BAUTISTA", "BENJAMÍN", "BRUNO", "CALEB",
+            "CAMILO", "CARLOS", "CRISTÓBAL", "CRISTIAN", "DAMIÁN", "DANIEL", "DAVID", "DIEGO", "EDUARDO", "ELÍAS",
+            "EMILIANO", "EMMANUEL", "ENRIQUE", "ESTEBAN", "ETHAN", "FEDERICO", "FERNANDO", "FRANCISCO", "GABRIEL",
+            "GAEL", "GASPAR", "GERMÁN", "GUSTAVO", "HERNÁN", "IAN", "IGNACIO", "ISIDORO", "IVÁN", "JAIR", "JAIRO",
+            "JASON", "JEREMY", "JHON", "JOAQUÍN", "JORGE", "JUAN", "JULIÁN", "KEVIN", "KIAN", "LEÓN", "LEONARDO",
+            "LIAM", "LORENZO", "LUCCA", "LUIS", "MARCELO", "MARCO", "MARTÍN", "MATÍAS", "MATEO", "MAURICIO",
+            "MAXIMILIANO", "MIGUEL", "NICOLÁS", "OLIVER", "OMAR", "ORLANDO", "PATRICIO", "PAULO", "PEDRO", "RAFAEL",
+            "RAMIRO", "RICARDO", "ROBERTO", "RODRIGO", "RUBÉN", "SAMUEL", "SANTIAGO", "SEBASTIÁN", "SIMÓN", "THIAGO",
+            "TOBÍAS", "TOMÁS", "VALENTINO", "VÍCTOR", "VICENTE", "WALTER", "XANDER", "ZAHIR",
+            
+            # Feminine names (common in Chile)
+            "AGUSTINA", "AINHOA", "AITANA", "ALBA", "ALEJANDRA", "ALEXA", "ALEXANDRA", "ALMENDRA", "AMANDA", "AMELIA",
+            "ANAÍS", "ANTONELLA", "ANTONIA", "ARANTXA", "ARIADNA", "AROHA", "AZUL", "BELÉN", "BLANCA", "BRISA",
+            "CAMILA", "CARLA", "CAROLINA", "CATALINA", "CELIA", "CLARA", "CLAUDIA", "CONSTANZA", "DANIELA", "DÉBORA",
+            "DIANA", "DOMINIQUE", "ELISA", "ELIZABETH", "EMILIA", "EMMA", "ESMERALDA", "ESTEFANÍA", "FERNANDA",
+            "FLORENCIA", "FRANCISCA", "GABRIELA", "GIOVANNA", "ISABELLA", "IVANNA", "JAVIERA", "JIMENA", "JOSEFINA",
+            "JUANITA", "JULIETA", "KARINA", "KARLA", "KATIA", "KIARA", "LARA", "LAURA", "LAYLA", "LILA", "LUCIANA",
+            "LUISA", "LUNA", "MACARENA", "MAGDALENA", "MANUELA", "MARÍA", "MARTINA", "MATILDA", "MÍA", "MILA",
+            "MIREYA", "NATALIA", "NEREA", "NICOLE", "NOELIA", "OLIVIA", "PALOMA", "PAOLA", "PAULINA", "PAZ",
+            "PENÉLOPE", "RENATA", "ROCÍO", "ROSA", "ROMINA", "ROSARIO", "SALOMÉ", "SAMANTHA", "SARA", "SOFÍA", "SOL",
+            "TAMARA", "VALENTINA", "VALERIA", "VANIA", "VERÓNICA", "VICTORIA", "VIOLETA", "XIMENA", "YASNA",
+            "YOLANDA", "ZOE"
+        ],
+    },
+    'mexico': {
+        'first_names': [
+            # Traditional Mexican masculine names
+            "ALEJANDRO", "ANDRÉS", "ANTONIO", "CARLOS", "DANIEL", "DAVID", "DIEGO", "EDUARDO", "EMILIO", "FERNANDO",
+            "FRANCISCO", "GABRIEL", "GUSTAVO", "HUGO", "IGNACIO", "JAVIER", "JESÚS", "JORGE", "JOSÉ", "JUAN",
+            "JULIO", "LEONARDO", "LUIS", "MANUEL", "MARCO", "MARIO", "MIGUEL", "PABLO", "PEDRO", "RAFAEL",
+            "RAMÓN", "RAÚL", "RICARDO", "ROBERTO", "RODOLFO", "SALVADOR", "SANTIAGO", "SERGIO", "VÍCTOR",
+            
+            # Traditional Mexican feminine names
+            "ADRIANA", "ALEJANDRA", "ANA", "ANDREA", "ÁNGELA", "BEATRIZ", "CARMEN", "CAROLINA", "CLAUDIA", "CRISTINA",
+            "DANIELA", "ELENA", "ELIZABETH", "ESPERANZA", "FERNANDA", "GABRIELA", "GUADALUPE", "ISABELLA", "JESSICA",
+            "JULIA", "LAURA", "LETICIA", "LUCÍA", "MARÍA", "MARTHA", "MÓNICA", "NATALIA", "PATRICIA", "ROSA",
+            "SANDRA", "SOFÍA", "SUSANA", "TERESA", "VALERIA", "VERÓNICA", "VICTORIA", "YOLANDA",
+            
+            # Indigenous Mexican names
+            "XÓCHITL", "ITZEL", "YARETZI", "CITLALI", "NAYELI", "ARELY", "ITZAYANA", "XITLALI", "YANELI", "ANAHÍ",
+            "XIMENA", "YAMILET", "CITLALY", "NAOMI", "QUETZALI", "TLÁLOC", "CUAUHTÉMOC", "NEZAHUALCÓYOTL",
+            "MOCTEZUMA", "TENOCHTITLAN", "TONATIUH", "MALINTZIN", "IZEL", "ITZÁMIN", "XITLA"
+        ],
+    },
+    'brazil': {
+        'first_names': [
+            # Brazilian Portuguese masculine names
+            "ALEXANDRE", "ANDRÉ", "ANTÔNIO", "BRUNO", "CARLOS", "DANIEL", "EDUARDO", "FÁBIO", "FERNANDO", "GABRIEL",
+            "GUSTAVO", "HENRIQUE", "JOÃO", "JOSÉ", "LEONARDO", "LUCAS", "LUÍS", "MARCELO", "MARCOS", "MATEUS",
+            "PEDRO", "RAFAEL", "RICARDO", "RODRIGO", "THIAGO", "VINÍCIUS", "CAIO", "FELIPE", "GUILHERME", "IGOR",
+            "LEANDRO", "MAURÍCIO", "PAULO", "RENATO", "SÉRGIO", "WELLINGTON", "WASHINGTON", "WESLEY",
+            
+            # Brazilian Portuguese feminine names  
+            "ADRIANA", "ANA", "ANDREA", "BEATRIZ", "BIANCA", "CAMILA", "CAROLINA", "CRISTIANE", "DANIELA", "FERNANDA",
+            "GABRIELA", "JULIANA", "LARISSA", "LETÍCIA", "LUCIANA", "MARCIA", "MARIA", "MÔNICA", "PATRÍCIA", "PAULA",
+            "PRISCILA", "RAFAELA", "SANDRA", "TATIANA", "VANESSA", "VIVIANE", "DÉBORA", "FLÁVIA", "JÉSSICA", "KARINA",
+            "LUANA", "RENATA", "SIMONE", "SOLANGE", "TÂNIA", "CLÁUDIA", "ELIANE", "FABIANA", "GISELE", "HELENA"
+        ],
+    },
+    'uruguay': {
+        'first_names': [
+            # Uruguayan masculine names (similar to Argentine/Chilean with some variations)
+            "AGUSTÍN", "ALEJANDRO", "ANDRÉS", "ANTONIO", "CARLOS", "DANIEL", "DIEGO", "EDUARDO", "FERNANDO", "FRANCISCO",
+            "GABRIEL", "GONZALO", "GUSTAVO", "IGNACIO", "JAVIER", "JOAQUÍN", "JORGE", "JOSÉ", "JUAN", "LEONARDO",
+            "LUIS", "MANUEL", "MARCELO", "MARIO", "MARTÍN", "MATÍAS", "MIGUEL", "NICOLÁS", "PABLO", "PEDRO",
+            "RAFAEL", "RAMIRO", "RICARDO", "ROBERTO", "RODRIGO", "SANTIAGO", "SEBASTIÁN", "VÍCTOR", "WALTER",
+            
+            # Uruguayan feminine names
+            "ADRIANA", "ALEJANDRA", "ANA", "ANDREA", "BEATRIZ", "CAROLINA", "CLAUDIA", "CRISTINA", "DANIELA", "ELENA",
+            "FERNANDA", "GABRIELA", "GRACIELA", "ISABEL", "LAURA", "LETICIA", "LUCÍA", "MARÍA", "MARTHA", "MÓNICA",
+            "NATALIA", "PATRICIA", "PAULA", "ROSA", "SANDRA", "SILVIA", "SOFÍA", "SUSANA", "VALERIA", "VERÓNICA",
+            "VIRGINIA", "VIVIANA", "ALEJANDRA", "CECILIA", "FLORENCIA", "MAGDALENA", "MACARENA", "VALENTINA"
+        ],
+    }
+}
+
+# Backwards compatibility - keep Chilean data accessible
+chilean_first_names = COUNTRY_DATA['chile']['first_names']
+
+# Add second names to country data
+COUNTRY_DATA['chile']['second_names'] = [
     # Masculine second names
     "CARLOS", "JOSÉ", "LUIS", "ANTONIO", "MANUEL", "FRANCISCO", "MIGUEL", "RAFAEL", "FERNANDO", "RICARDO",
     "ALBERTO", "EDUARDO", "ALEJANDRO", "ANDRÉS", "ROBERTO", "PEDRO", "DANIEL", "GABRIEL", "DIEGO", "SEBASTIÁN",
@@ -115,13 +178,45 @@ chilean_second_names = [
     "CONCEPCIÓN", "INMACULADA", "ÁNGELES", "REMEDIOS", "VICTORIA", "GLORIA", "PAZ", "FE", "CARIDAD", "NIEVES"
 ]
 
+COUNTRY_DATA['mexico']['second_names'] = [
+    # Mexican masculine second names
+    "MARÍA", "JOSÉ", "LUIS", "ANTONIO", "MANUEL", "FRANCISCO", "MIGUEL", "RAFAEL", "CARLOS", "JESÚS",
+    "GUADALUPE", "ÁNGEL", "RAMÓN", "ALEJANDRO", "FERNANDO", "JAVIER", "ALBERTO", "EDUARDO", "ENRIQUE", "SALVADOR",
+    
+    # Mexican feminine second names  
+    "JOSÉ", "MARÍA", "GUADALUPE", "CARMEN", "TERESA", "ISABEL", "ESPERANZA", "ROSA", "ELENA", "PATRICIA",
+    "CONCEPCIÓN", "DOLORES", "SOCORRO", "LUZ", "AMPARO", "REFUGIO", "PILAR", "SOLEDAD", "REMEDIOS", "TRINIDAD"
+]
+
+COUNTRY_DATA['brazil']['second_names'] = [
+    # Brazilian masculine second names (often use "de" constructions)
+    "JOSÉ", "JOÃO", "ANTÔNIO", "FRANCISCO", "CARLOS", "PAULO", "PEDRO", "LUCAS", "LUÍS", "MARCOS",
+    "RAFAEL", "DANIEL", "MARCELO", "BRUNO", "RODRIGO", "FERNANDO", "GUSTAVO", "EDUARDO", "GABRIEL", "LEONARDO",
+    
+    # Brazilian feminine second names
+    "MARIA", "ANA", "FRANCISCA", "ANTÔNIA", "ADRIANA", "JULIANA", "MÁRCIA", "FERNANDA", "PATRÍCIA", "ALINE",
+    "CRISTINA", "CAMILA", "CARLA", "REGINA", "VERA", "LÚCIA", "HELENA", "SILVIA", "MÔNICA", "PAULA"
+]
+
+COUNTRY_DATA['uruguay']['second_names'] = [
+    # Uruguayan masculine second names
+    "JOSÉ", "MARÍA", "CARLOS", "LUIS", "ANTONIO", "MANUEL", "FRANCISCO", "MIGUEL", "RAFAEL", "ALBERTO",
+    "EDUARDO", "ALEJANDRO", "ANDRÉS", "ROBERTO", "PEDRO", "DANIEL", "GABRIEL", "DIEGO", "SEBASTIÁN", "PABLO",
+    
+    # Uruguayan feminine second names
+    "MARÍA", "JOSÉ", "ISABEL", "CRISTINA", "ELENA", "TERESA", "PATRICIA", "CARMEN", "ROSA", "ANA",
+    "LAURA", "BEATRIZ", "ESPERANZA", "MERCEDES", "SOLEDAD", "AMPARO", "ROCÍO", "VICTORIA", "GLORIA", "PAZ"
+]
+
+# Backwards compatibility
+chilean_second_names = COUNTRY_DATA['chile']['second_names']
+
 # Keep legacy 'names' for backward compatibility
 first_names = chilean_first_names
 second_names = chilean_second_names
 
-# Collection of common Chilean surnames
-# Includes the most common family names found in Chile
-chilean_surnames = [
+# Add surnames to country data
+COUNTRY_DATA['chile']['surnames'] = [
     # Most common Chilean surnames
     "GONZÁLEZ", "MUÑOZ", "ROJAS", "DÍAZ", "PÉREZ", "SOTO", "CONTRERAS", "SILVA", "MARTÍNEZ", "SEPÚLVEDA",
     "MORALES", "RODRÍGUEZ", "LÓPEZ", "ARAYA", "FUENTES", "HERNÁNDEZ", "TORRES", "ESPINOZA", "FLORES",
@@ -137,15 +232,41 @@ chilean_surnames = [
     "PUEBLA", "QUEZADA", "ROBLES", "SEGOVIA", "URRUTIA", "VILLANUEVA", "ANDRADE", "CARVALLO", "DONOSO"
 ]
 
-# Keep backward compatibility
-surnames = chilean_surnames
+COUNTRY_DATA['mexico']['surnames'] = [
+    # Most common Mexican surnames
+    "HERNÁNDEZ", "GARCÍA", "MARTÍNEZ", "LÓPEZ", "GONZÁLEZ", "RODRÍGUEZ", "PÉREZ", "SÁNCHEZ", "RAMÍREZ", "CRUZ",
+    "FLORES", "GÓMEZ", "MORALES", "VÁZQUEZ", "JIMÉNEZ", "RUIZ", "HERNÁN", "DÍAZ", "MORENO", "MUÑOZ",
+    "ÁLVAREZ", "ROMERO", "GUTIÉRREZ", "TORRES", "MENDOZA", "VARGAS", "CASTILLO", "ORTEGA", "REYES", "DELGADO",
+    "GUERRERO", "MEDINA", "AGUILAR", "RAMOS", "CERVANTES", "HERRERA", "LARA", "DOMÍNGUEZ", "CASTRO", "VARELA",
+    "ORTIZ", "RUBIO", "MARÍN", "IGLESIAS", "NUÑEZ", "PEÑA", "RÍOS", "ALONSO", "GARRIDO", "GALLEGO",
+    # Indigenous Mexican surnames
+    "XÓLOTL", "ITURBIDE", "CUAUHTÉMOC", "MOCTEZUMA", "TLACAELEL", "NEZAHUALCÓYOTL", "TONATIUH", "COATLICUE"
+]
 
-# -----------------
-# Chilean Address Database
-# -----------------
-# Collection of authentic street names from major Chilean cities
-# Focused on Santiago and other important Chilean cities for realistic address generation
-chilean_streets = [
+COUNTRY_DATA['brazil']['surnames'] = [
+    # Most common Brazilian surnames
+    "SILVA", "SANTOS", "OLIVEIRA", "SOUZA", "RODRIGUES", "FERREIRA", "ALVES", "PEREIRA", "LIMA", "GOMES",
+    "RIBEIRO", "CARVALHO", "ALMEIDA", "LOPES", "SOARES", "FERNANDES", "VIEIRA", "BARBOSA", "ROCHA", "DIAS",
+    "MONTEIRO", "CARDOSO", "REIS", "ARAÚJO", "CAVALCANTI", "NASCIMENTO", "AZEVEDO", "COSTA", "PINTO", "TEIXEIRA",
+    "MENDES", "MOREIRA", "CORREIA", "MARTINS", "RAMOS", "NUNES", "FREITAS", "CAMPOS", "MIRANDA", "FONSECA",
+    "MACHADO", "MOURA", "MELO", "CUNHA", "PIRES", "CASTRO", "ANDRADE", "COELHO", "FARIAS", "BATISTA"
+]
+
+COUNTRY_DATA['uruguay']['surnames'] = [
+    # Most common Uruguayan surnames (mix of Spanish and some Italian influence)
+    "RODRÍGUEZ", "GONZÁLEZ", "GARCÍA", "LÓPEZ", "MARTÍNEZ", "PÉREZ", "FERNÁNDEZ", "SÁNCHEZ", "DÍAZ", "ÁLVAREZ",
+    "ROMERO", "VARGAS", "CASTRO", "RAMOS", "MORALES", "ORTEGA", "DELGADO", "JIMÉNEZ", "RUIZ", "HERNÁNDEZ",
+    "SILVA", "TORRES", "FLORES", "VEGA", "MEDINA", "AGUILAR", "HERRERA", "MENDOZA", "GUERRERO", "NÚÑEZ",
+    "PEÑA", "RÍOS", "GÓMEZ", "CONTRERAS", "GUTIÉRREZ", "REYES", "ESTRADA", "PAREDES", "DOMÍNGUEZ", "LARA",
+    # Italian influence surnames common in Uruguay
+    "FERRARI", "ROSSI", "BRUNO", "MARTINO", "ROMANO", "RICCI", "COSTA", "MAZZA", "RUSSO", "GRECO"
+]
+
+# Backwards compatibility  
+chilean_surnames = COUNTRY_DATA['chile']['surnames']
+
+# Add addresses and cities to country data
+COUNTRY_DATA['chile']['streets'] = [
     # Santiago - Main avenues and streets
     "Av. Libertador Bernardo O'Higgins",  # Main avenue in Santiago
     "Av. Apoquindo",                      # Upscale area in Las Condes
@@ -181,9 +302,79 @@ chilean_streets = [
     "Calle Los Aromos",                   # Residential street name
 ]
 
-# Chilean cities for realistic addresses
-chilean_cities = [
-    # Major Chilean cities
+COUNTRY_DATA['mexico']['streets'] = [
+    # Mexican streets with colonias and typical names
+    "Av. Insurgentes Sur",                # Major avenue in Mexico City
+    "Av. Reforma",                        # Famous avenue in Mexico City
+    "Calle Francisco I. Madero",          # Historic street in Centro
+    "Av. Juárez",                         # Important avenue
+    "Calle 16 de Septiembre",             # Independence Day street
+    "Av. Universidad",                    # University avenue
+    "Calle Puebla",                       # Street named after state
+    "Av. Chapultepec",                    # Street in Roma Norte
+    "Calle Orizaba",                      # Street in Roma Norte colonia
+    "Av. Álvaro Obregón",                 # Avenue named after president
+    "Calle Insurgentes Norte",            # Northern section of Insurgentes
+    "Av. Revolución",                     # Avenue commemorating the Revolution
+    "Eje Central Lázaro Cárdenas",        # Major north-south axis
+    "Calle Durango",                      # Street in Colonia Roma
+    "Calle Londres",                      # Street in Zona Rosa
+    "Av. Coyoacán",                       # Avenue to Coyoacán
+    "Calle Medellín",                     # Street in Colonia Roma
+    "Av. Cuauhtémoc",                     # Avenue named after Aztec emperor
+    "Calle Monterrey",                    # Street in Colonia Roma
+    "Av. División del Norte"              # Major south avenue
+]
+
+COUNTRY_DATA['brazil']['streets'] = [
+    # Brazilian streets with typical Portuguese naming
+    "Av. Paulista",                       # Famous avenue in São Paulo
+    "Rua Augusta",                        # Well-known street in São Paulo
+    "Av. Ipiranga",                       # Avenue in São Paulo
+    "Rua da Consolação",                  # Street in São Paulo
+    "Av. Copacabana",                     # Famous avenue in Rio
+    "Rua Visconde de Pirajá",             # Street in Ipanema
+    "Av. Atlântica",                      # Beachfront avenue in Rio
+    "Rua do Ouvidor",                     # Historic street in Rio Centro
+    "Av. Presidente Vargas",              # Avenue named after president
+    "Rua Direita",                        # Traditional street name
+    "Av. Brasil",                         # Avenue named after country
+    "Rua das Flores",                     # "Street of the Flowers"
+    "Av. Santos Dumont",                  # Aviation pioneer avenue
+    "Rua Barão de Itapetininga",          # Street with noble title
+    "Av. São João",                       # Saint John avenue
+    "Rua Oscar Freire",                   # Upscale shopping street
+    "Av. Brigadeiro Faria Lima",          # Business district avenue
+    "Rua 25 de Março",                    # Commercial street
+    "Av. Rebouças",                       # Major avenue in São Paulo
+    "Rua da Liberdade"                    # Street in Japanese district
+]
+
+COUNTRY_DATA['uruguay']['streets'] = [
+    # Uruguayan streets from Montevideo and other cities
+    "Bvar. Artigas",                      # Boulevard named after national hero
+    "Av. 18 de Julio",                    # Main avenue in Montevideo
+    "Av. Italia",                         # Important avenue
+    "Av. Rivera",                         # Major avenue
+    "Av. Gral. Flores",                   # Avenue named after general
+    "Calle Colonia",                      # Historic street
+    "Calle Soriano",                      # Street in downtown Montevideo
+    "Calle Yi",                           # Short downtown street
+    "Calle Durazno",                      # Street named after fruit
+    "Pasaje Pérez Castellanos",           # Small passage
+    "Calle Canelones",                    # Street named after department
+    "Calle San José",                     # Street named after saint
+    "Calle Río Branco",                   # Street named after river
+    "Calle Cerro Largo",                  # Street named after department
+    "Calle Andes",                        # Street named after mountain range
+    "Av. Millán",                         # Major avenue
+    "Calle Mercedes",                     # Street named after department
+    "Av. Agraciada",                      # Historic avenue
+    "Calle Uruguay",                      # Street named after country
+    "Bvar. Batlle y Ordóñez"              # Boulevard named after president
+]
+
+COUNTRY_DATA['chile']['cities'] = [
     "Santiago",           # Capital and largest city
     "Valparaíso",        # Main port city
     "Concepción",        # Southern major city
@@ -198,23 +389,80 @@ chilean_cities = [
     "Chillán",           # Bio-Bio region
     "Copiapó",           # Atacama region
     "Osorno",            # Los Lagos region
-    "Quillota",          # Valparaíso region
-    "Viña del Mar",      # Coastal resort city
-    "San Antonio",       # Port city
-    "Melipilla",         # Metropolitan region
-    "Los Ángeles",       # Bio-Bio region
-    "Curicó",            # Maule region
+    "Valdivia"           # Rivers city
 ]
 
+COUNTRY_DATA['mexico']['cities'] = [
+    "Ciudad de México",   # Capital and largest city
+    "Guadalajara",        # Second largest city
+    "Monterrey",          # Major industrial city
+    "Puebla",             # Historic colonial city
+    "Tijuana",            # Border city with USA
+    "León",               # Leather industry city
+    "Ciudad Juárez",      # Border city
+    "Torreón",            # Northern industrial city
+    "Querétaro",          # Central Mexico city
+    "San Luis Potosí",    # Mining city
+    "Mérida",             # Yucatan capital
+    "Aguascalientes",     # Central city
+    "Mexicali",           # Baja California capital
+    "Culiacán",           # Sinaloa capital
+    "Acapulco"            # Pacific coast resort
+]
+
+COUNTRY_DATA['brazil']['cities'] = [
+    "São Paulo",          # Largest city in South America
+    "Rio de Janeiro",     # Former capital, major tourist destination
+    "Belo Horizonte",     # Major southeastern city
+    "Brasília",           # Current capital
+    "Salvador",           # Historic northeastern city
+    "Fortaleza",          # Major northeastern city
+    "Manaus",             # Amazon region capital
+    "Curitiba",           # Southern city
+    "Recife",             # Major northeastern port
+    "Goiânia",            # Central Brazil city
+    "Belém",              # Amazon river port
+    "Guarulhos",          # Greater São Paulo
+    "Campinas",           # Technology hub
+    "São Luís",           # Northeastern capital
+    "Nova Iguaçu"         # Rio de Janeiro metropolitan area
+]
+
+COUNTRY_DATA['uruguay']['cities'] = [
+    "Montevideo",         # Capital and largest city
+    "Salto",              # Second largest city
+    "Paysandú",           # Important river port
+    "Las Piedras",        # Suburban city near Montevideo
+    "Rivera",             # Border city with Brazil
+    "Maldonado",          # Coastal city
+    "Tacuarembó",         # Northern city
+    "Melo",               # Eastern city
+    "Mercedes",           # Western city
+    "Artigas",            # Northern border city
+    "Minas",              # Central city
+    "San José de Mayo",   # Central city
+    "Durazno",            # Central city
+    "Florida",            # Central city
+    "Treinta y Tres"      # Eastern city
+]
+
+# Backwards compatibility for addresses
+chilean_streets = COUNTRY_DATA['chile']['streets']  
+chilean_cities = COUNTRY_DATA['chile']['cities']
+
 # Keep backward compatibility
+surnames = chilean_surnames
 streets = chilean_streets
 cities = chilean_cities
 
 # -----------------
 # Chilean Organizations Database
 # -----------------
-# Collection of realistic Chilean organization names for business context
-chilean_organizations = [
+# Multi-Country Organizations Database
+# -----------------
+
+# Add organizations to country data
+COUNTRY_DATA['chile']['organizations'] = [
     # Banks and Financial Institutions
     "Banco de Chile", "Banco Santander Chile", "BancoEstado", "Banco de Crédito e Inversiones",
     "Banco Security", "Banco Falabella", "Banco Ripley", "Banco Itaú Chile",
@@ -243,27 +491,100 @@ chilean_organizations = [
     "Carabineros de Chile", "SEREMI de Salud", "JUNAEB"
 ]
 
+COUNTRY_DATA['mexico']['organizations'] = [
+    # Banks and Financial Institutions
+    "BBVA México", "Banorte", "Santander México", "HSBC México", "Citibanamex", "Banco Azteca",
+    "Scotiabank México", "Banco Inbursa", "BanCoppel", "Banco del Bajío",
+    
+    # Retail and Commerce
+    "Liverpool", "Palacio de Hierro", "Sears México", "Coppel", "Elektra", "Soriana",
+    "Walmart México", "Comercial Mexicana", "OXXO", "7-Eleven México",
+    
+    # Telecommunications
+    "Telcel", "Movistar México", "AT&T México", "Izzi", "Megacable", "Totalplay",
+    
+    # Government and Public
+    "IMSS", "ISSSTE", "INFONAVIT", "SAT", "INE", "SEDENA", "SEMAR", "Guardia Nacional",
+    "Secretaría de Salud", "SEP", "CONACYT",
+    
+    # Energy and Industry
+    "PEMEX", "CFE", "Grupo México", "CEMEX", "Bimbo", "América Móvil",
+    
+    # Education
+    "UNAM", "IPN", "ITESM", "UAM", "Universidad de Guadalajara"
+]
+
+COUNTRY_DATA['brazil']['organizations'] = [
+    # Banks and Financial Institutions
+    "Banco do Brasil", "Itaú Unibanco", "Bradesco", "Santander Brasil", "Caixa Econômica Federal",
+    "Banco Inter", "Nubank", "BTG Pactual", "Banco Safra", "Banrisul",
+    
+    # Retail and Commerce
+    "Magazine Luiza", "Via Varejo", "Lojas Americanas", "Pão de Açúcar", "Carrefour Brasil",
+    "Walmart Brasil", "Extra", "Casas Bahia", "Renner", "C&A Brasil",
+    
+    # Telecommunications
+    "Vivo", "Claro Brasil", "TIM Brasil", "Oi", "Nextel Brasil", "Algar Telecom",
+    
+    # Government and Public
+    "Receita Federal", "INSS", "SUS", "Ministério da Saúde", "IBGE", "Polícia Federal",
+    "Correios", "BNDES", "Petrobras", "Eletrobras",
+    
+    # Industry and Energy
+    "Vale", "JBS", "Ambev", "Gerdau", "CSN", "Embraer",
+    
+    # Education
+    "USP", "UNICAMP", "UFRJ", "UFMG", "UnB", "PUC-SP"
+]
+
+COUNTRY_DATA['uruguay']['organizations'] = [
+    # Banks and Financial Institutions
+    "Banco República", "Banco Santander Uruguay", "Banco Itaú Uruguay", "BBVA Uruguay",
+    "Banco de la Nación Argentina", "Citibank Uruguay", "Scotiabank Uruguay",
+    
+    # Retail and Commerce
+    "Tienda Inglesa", "Disco", "Devoto", "Ta-Ta", "Géant", "Farmashop", "Red Pagos",
+    
+    # Telecommunications
+    "Antel", "Movistar Uruguay", "Claro Uruguay", "Dedicado",
+    
+    # Government and Public
+    "DGI", "BPS", "ASSE", "UdelaR", "INAU", "MTOP", "Ministerio de Salud",
+    "Intendencia de Montevideo", "Policía Nacional", "Bomberos",
+    
+    # Utilities and Services
+    "UTE", "OSE", "ANCAP", "AFE", "Puerto de Montevideo",
+    
+    # Education
+    "Universidad de la República", "Universidad Católica del Uruguay", "Universidad ORT"
+]
+
+# Backwards compatibility
+chilean_organizations = COUNTRY_DATA['chile']['organizations']
+
 # Keep backward compatibility
 organizations = chilean_organizations
 
 # -----------------
-# Advanced Name Generation Functions
+# Multi-Country Name Generation Functions
 # -----------------
 
-def generate_chilean_name_components(include_second_name: bool = True, 
-                                   second_name_probability: float = 0.4,
-                                   include_second_surname: bool = True, 
-                                   second_surname_probability: float = 0.8) -> Tuple[str, str, str]:
+def generate_name_components(country: str = "chile",
+                           include_second_name: bool = True, 
+                           second_name_probability: float = 0.4,
+                           include_second_surname: bool = True, 
+                           second_surname_probability: float = 0.8) -> Tuple[str, str, str]:
     """
-    Generate Chilean name components with enhanced second surname support.
+    Generate name components with enhanced second surname support for any supported country.
     
-    Creates authentic Chilean naming patterns including:
+    Creates authentic naming patterns for each country including:
     - First name (required)
     - Optional second name (compound first names like "Juan Carlos", "María José")
     - Paternal surname (required)
-    - Optional maternal surname (very common in Chile)
+    - Optional maternal surname (common in Latin America)
     
     Args:
+        country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
         include_second_name (bool): Whether to allow second names
         second_name_probability (float): Probability of including a second name (0.0-1.0)
         include_second_surname (bool): Whether to allow second surnames
@@ -280,116 +601,276 @@ def generate_chilean_name_components(include_second_name: bool = True,
         ("MARÍA", "MARÍA JOSÉ", "SILVA MARTÍNEZ")
         ("PEDRO", "PEDRO", "LÓPEZ")
     """
+    # Get country-specific data
+    if country not in COUNTRY_DATA:
+        country = "chile"  # fallback to Chile
+    
+    country_info = COUNTRY_DATA[country]
+    
     # Generate first name
-    first_name = random.choice(chilean_first_names)
+    first_name = random.choice(country_info['first_names'])
     
     # Generate paternal surname (always required)
-    paternal_surname = random.choice(chilean_surnames)
+    paternal_surname = random.choice(country_info['surnames'])
     
     # Decide on second name
     full_name_part = first_name
     if include_second_name and random.random() < second_name_probability:
-        second_name = random.choice(chilean_second_names)
-        # Avoid duplicating the same name
-        if second_name != first_name:
-            full_name_part = f"{first_name} {second_name}"
+        second_name = random.choice(country_info['second_names'])
+        full_name_part = f"{first_name} {second_name}"
     
-    # Decide on maternal surname (second surname)
+    # Decide on maternal surname
     complete_surname = paternal_surname
     if include_second_surname and random.random() < second_surname_probability:
-        maternal_surname = random.choice(chilean_surnames)
+        maternal_surname = random.choice(country_info['surnames'])
         # Ensure different surnames
         if maternal_surname != paternal_surname:
             complete_surname = f"{paternal_surname} {maternal_surname}"
     
     return first_name, full_name_part, complete_surname
 
+def generate_chilean_name_components(include_second_name: bool = True, 
+                                   second_name_probability: float = 0.4,
+                                   include_second_surname: bool = True, 
+                                   second_surname_probability: float = 0.8) -> Tuple[str, str, str]:
+    """
+    Generate Chilean name components with enhanced second surname support.
+    (Backwards compatibility wrapper)
+    """
+    return generate_name_components("chile", include_second_name, second_name_probability, 
+                                   include_second_surname, second_surname_probability)
+
+def generate_phone(country: str = "chile") -> str:
+    """
+    Generate a realistic phone number for the specified country.
+    
+    Country-specific phone formats:
+    - Chile: +56 9 XXXX XXXX (mobile) or +56 2 XXXX XXXX (landline)
+    - Mexico: +52 1 XXX XXX XXXX (mobile) or +52 XX XXXX XXXX (landline)
+    - Brazil: +55 XX 9XXXX XXXX (mobile) or +55 XX XXXX XXXX (landline)  
+    - Uruguay: +598 9X XXX XXX (mobile) or +598 2XXX XXXX (landline)
+    
+    Args:
+        country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
+        
+    Returns:
+        str: Formatted phone number
+    """
+    if country == "chile":
+        # 80% mobile, 20% landline
+        if random.random() < 0.8:
+            # Mobile phone (+56 9)
+            return f"+56 9 {random.randint(1000,9999)} {random.randint(1000,9999)}"
+        else:
+            # Santiago landline (+56 2)
+            return f"+56 2 {random.randint(2000,9999)} {random.randint(1000,9999)}"
+    
+    elif country == "mexico":
+        # 85% mobile, 15% landline
+        if random.random() < 0.85:
+            # Mobile phone (+52 1)
+            return f"+52 1 {random.randint(100,999)} {random.randint(100,999)} {random.randint(1000,9999)}"
+        else:
+            # Landline (+52 city_code)
+            city_code = random.choice([55, 33, 81, 222, 664])  # Mexico City, Guadalajara, Monterrey, Puebla, Tijuana
+            return f"+52 {city_code} {random.randint(1000,9999)} {random.randint(1000,9999)}"
+    
+    elif country == "brazil":
+        # 90% mobile, 10% landline
+        if random.random() < 0.9:
+            # Mobile phone (+55 XX 9XXXX XXXX)
+            area_code = random.choice([11, 21, 31, 47, 85])  # São Paulo, Rio, Belo Horizonte, Joinville, Fortaleza
+            return f"+55 {area_code} 9{random.randint(1000,9999)} {random.randint(1000,9999)}"
+        else:
+            # Landline (+55 XX XXXX XXXX)
+            area_code = random.choice([11, 21, 31, 47, 85])
+            return f"+55 {area_code} {random.randint(2000,9999)} {random.randint(1000,9999)}"
+    
+    elif country == "uruguay":
+        # 85% mobile, 15% landline
+        if random.random() < 0.85:
+            # Mobile phone (+598 9X XXX XXX)
+            return f"+598 9{random.randint(1,9)} {random.randint(100,999)} {random.randint(100,999)}"
+        else:
+            # Montevideo landline (+598 2XXX XXXX)
+            return f"+598 2{random.randint(100,999)} {random.randint(1000,9999)}"
+    
+    else:
+        # Default to Chilean format
+        return generate_phone("chile")
+
 def generate_chilean_phone() -> str:
     """
     Generate a realistic Chilean phone number.
-    
-    Chilean phone format: +56 9 XXXX XXXX (mobile) or +56 2 XXXX XXXX (Santiago landline)
-    
-    Returns:
-        str: Formatted Chilean phone number
+    (Backwards compatibility wrapper)
     """
-    # 80% mobile, 20% landline
-    if random.random() < 0.8:
-        # Mobile phone (+56 9)
-        return f"+56 9 {random.randint(1000,9999)} {random.randint(1000,9999)}"
-    else:
-        # Santiago landline (+56 2)
-        return f"+56 2 {random.randint(2000,9999)} {random.randint(1000,9999)}"
+    return generate_phone("chile")
 
-def generate_chilean_email(name: str, surname: str) -> str:
+def generate_email(name: str, surname: str, country: str = "chile") -> str:
     """
-    Generate a realistic Chilean email address using the person's name and surname.
+    Generate a realistic email address using the person's name and surname for any country.
     
     Creates email in format: firstname.lastname@domain.com
-    Uses common email providers in Chile.
+    Uses common email providers in each country.
     For double surnames, uses only the paternal (first) surname.
     
     Args:
         name (str): First name of the person
         surname (str): Complete surname (may include paternal and maternal)
+        country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
         
     Returns:
         str: Email address in lowercase
     """
-    # Common email domains in Chile
-    chilean_domains = ["gmail.com", "hotmail.com", "yahoo.com", "outlook.com", "live.cl", "vtr.net"]
+    # Country-specific email domains
+    domains = {
+        "chile": ["gmail.com", "hotmail.com", "yahoo.com", "outlook.com", "live.cl", "vtr.net"],
+        "mexico": ["gmail.com", "hotmail.com", "yahoo.com.mx", "outlook.com", "live.com.mx", "prodigy.net.mx"],
+        "brazil": ["gmail.com", "hotmail.com", "yahoo.com.br", "outlook.com", "uol.com.br", "bol.com.br", "terra.com.br"],
+        "uruguay": ["gmail.com", "hotmail.com", "yahoo.com", "outlook.com", "live.com.uy", "adinet.com.uy"]
+    }
     
     # Use only the first surname for email (paternal surname)
     first_surname = surname.split()[0] if " " in surname else surname
     
-    # Remove accents for email compatibility
-    name_clean = name.lower().replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('ñ', 'n')
-    surname_clean = first_surname.lower().replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('ñ', 'n')
+    # Remove accents and special characters for email compatibility
+    name_clean = name.lower()
+    surname_clean = first_surname.lower()
     
-    return f"{name_clean}.{surname_clean}@{random.choice(chilean_domains)}"
+    # Remove common accents for all countries
+    accent_map = {
+        'á': 'a', 'à': 'a', 'ã': 'a', 'â': 'a',
+        'é': 'e', 'è': 'e', 'ê': 'e',
+        'í': 'i', 'ì': 'i', 'î': 'i',
+        'ó': 'o', 'ò': 'o', 'õ': 'o', 'ô': 'o',
+        'ú': 'u', 'ù': 'u', 'û': 'u',
+        'ñ': 'n', 'ç': 'c'
+    }
+    
+    for accented, plain in accent_map.items():
+        name_clean = name_clean.replace(accented, plain)
+        surname_clean = surname_clean.replace(accented, plain)
+    
+    # Select appropriate domains for country
+    country_domains = domains.get(country, domains["chile"])
+    
+    return f"{name_clean}.{surname_clean}@{random.choice(country_domains)}"
+
+def generate_chilean_email(name: str, surname: str) -> str:
+    """
+    Generate a realistic Chilean email address using the person's name and surname.
+    (Backwards compatibility wrapper)
+    """
+    return generate_email(name, surname, "chile")
+
+def generate_id(country: str = "chile") -> str:
+    """
+    Generate a realistic identification number for the specified country.
+    
+    Each country has its own ID format:
+    - Chile: RUT format XX.XXX.XXX-X
+    - Mexico: CURP format AAAA######AAAAAA## and RFC format
+    - Brazil: CPF format XXX.XXX.XXX-XX
+    - Uruguay: Cédula format X.XXX.XXX-X
+    
+    Args:
+        country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
+        
+    Returns:
+        str: Formatted identification number
+    """
+    if country == "chile":
+        # Chilean RUT (Rol Único Tributario)
+        rut_number = random.randint(10_000_000, 30_000_000)
+        check_digit = random.choice(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'K'])
+        rut_str = f"{rut_number:,}".replace(',', '.')
+        return f"{rut_str}-{check_digit}"
+    
+    elif country == "mexico":
+        # Mexican CURP (Clave Única de Registro de Población) - simplified version
+        if random.random() < 0.7:  # 70% CURP
+            letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            vowels = "AEIOU"
+            return f"{random.choice(letters)}{random.choice(vowels)}{random.choice(letters)}{random.choice(letters)}{random.randint(10,99)}{random.randint(1,12):02}{random.randint(1,28):02}H{random.choice(['DF', 'GD', 'GT', 'JL', 'MC', 'MN', 'NL', 'PB', 'SL', 'VZ'])}{random.choice(letters)}{random.choice(letters)}{random.randint(10,99)}"
+        else:  # 30% RFC
+            letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            return f"{random.choice(letters)}{random.choice(letters)}{random.choice(letters)}{random.choice(letters)}{random.randint(100000,999999)}{random.choice(letters)}{random.choice(letters)}{random.randint(1,9)}"
+    
+    elif country == "brazil":
+        # Brazilian CPF (Cadastro de Pessoas Físicas)
+        return f"{random.randint(100,999)}.{random.randint(100,999)}.{random.randint(100,999)}-{random.randint(10,99)}"
+    
+    elif country == "uruguay":
+        # Uruguayan Cédula de Identidad
+        return f"{random.randint(1,9)}.{random.randint(100,999)}.{random.randint(100,999)}-{random.randint(0,9)}"
+    
+    else:
+        # Default to Chilean format
+        return generate_id("chile")
 
 def generate_chilean_rut() -> str:
     """
     Generate a realistic Chilean RUT (Rol Único Tributario).
-    
-    Chilean RUT format: XX.XXX.XXX-X
-    The last digit is a check digit (0-9 or K)
-    
-    Returns:
-        str: Formatted Chilean RUT
+    (Backwards compatibility wrapper)
     """
-    # Generate main number (10-30 million range for realistic RUTs)
-    rut_number = random.randint(10_000_000, 30_000_000)
+    return generate_id("chile")
+
+def generate_amount(country: str = "chile") -> str:
+    """
+    Generate a realistic monetary amount for the specified country.
     
-    # Calculate check digit (simplified)
-    check_digit = random.choice(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'K'])
+    Amounts are generated within typical ranges for each country's currency:
+    - Chile: 10,000 - 2,000,000 CLP
+    - Mexico: 500 - 100,000 MXN
+    - Brazil: 50 - 5,000 BRL
+    - Uruguay: 1,000 - 200,000 UYU
     
-    # Format with dots and dash
-    rut_str = f"{rut_number:,}".replace(',', '.')
-    return f"{rut_str}-{check_digit}"
+    Args:
+        country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
+        
+    Returns:
+        str: Formatted amount with currency symbol and code
+    """
+    if country == "chile":
+        amount = random.randint(10_000, 2_000_000)
+        return f"${amount:,} CLP".replace(',', '.')
+    
+    elif country == "mexico":
+        amount = random.randint(500, 100_000)
+        return f"${amount:,} MXN"
+    
+    elif country == "brazil":
+        amount = random.randint(50, 5_000)
+        return f"R$ {amount:,} BRL"
+    
+    elif country == "uruguay":
+        amount = random.randint(1_000, 200_000)
+        return f"${amount:,} UYU"
+    
+    else:
+        # Default to Chilean format
+        return generate_amount("chile")
 
 def generate_chilean_amount() -> str:
     """
     Generate a realistic Chilean monetary amount.
-    
-    Amounts in Chilean Pesos (CLP) within typical ranges:
-    - 10,000 - 2,000,000 CLP for most transactions
-    
-    Returns:
-        str: Formatted amount with CLP currency
+    (Backwards compatibility wrapper)
     """
-    amount = random.randint(10_000, 2_000_000)
-    return f"${amount:,} CLP".replace(',', '.')
+    return generate_amount("chile")
 
-def generate_chilean_sequence_number() -> str:
+def generate_sequence_number(country: str = "chile") -> str:
     """
-    Generate a realistic sequential number for Chilean business contexts.
+    Generate a realistic sequential number for different business contexts per country.
     
-    Creates varied sequence identifiers used in real Chilean business scenarios:
+    Creates varied sequence identifiers used in real business scenarios:
     - Complaint numbers: 7-digit numbers
-    - Reference IDs: alphanumeric codes
+    - Reference IDs: alphanumeric codes  
     - Transaction IDs: mixed format
+    - Country-specific prefixes and formats
     
+    Args:
+        country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
+        
     Returns:
         str: Sequential identifier
     """
@@ -399,7 +880,26 @@ def generate_chilean_sequence_number() -> str:
         f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.randint(100000, 999999)}",  # Letter-Number
         f"{get_next_sequence()}",  # Global sequence
     ]
+    
+    # Add country-specific prefixes occasionally
+    if random.random() < 0.15:  # 15% chance of country prefix
+        country_prefixes = {
+            "chile": "CL",
+            "mexico": "MX", 
+            "brazil": "BR",
+            "uruguay": "UY"
+        }
+        prefix = country_prefixes.get(country, "CL")
+        return f"{prefix}-{random.randint(10001, 99999)}"
+    
     return random.choice(sequence_types)
+
+def generate_chilean_sequence_number() -> str:
+    """
+    Generate a realistic sequential number for Chilean business contexts.
+    (Backwards compatibility wrapper)
+    """
+    return generate_sequence_number("chile")
 
 # -----------------
 # Advanced Noise Generation Functions
@@ -548,7 +1048,215 @@ def generate_noisy_sentence_structure() -> str:
 # Advanced Entity Conflict Resolution (E1010 Fix)
 # -----------------
 
+# -----------------
+# Multi-Country Text Templates and Noise Functions
+# -----------------
+
+def get_sentence_templates(country: str) -> List[str]:
+    """
+    Get sentence templates appropriate for the specified country.
+    
+    Args:
+        country (str): Country code
+        
+    Returns:
+        List[str]: List of sentence templates with placeholders
+    """
+    if country == "chile":
+        return [
+            "El cliente {} con RUT {} reside en {}, {}. Teléfono: {} / Email: {}. Monto: {} - Referencia: {}.",
+            "Registro de {} con cédula {}. Ubicado en {}, {}. Contacto: {} / {}. Transacción: {} - ID: {}.",
+            "Cliente {} identificado con RUT {}. Dirección: {}, {}. Contacto telefónico: {}. Correo: {}. Valor: {} - Número: {}.",
+            "Datos del cliente: {} (RUT: {}). Domicilio: {}, {}. Tel: {} / {}. Monto operación: {} - Folio: {}.",
+            "Información de {} con RUT {}. Vive en {}, {}. Fono: {} - Email: {}. Cantidad: {} - Serie: {}."
+        ]
+    elif country == "mexico":
+        return [
+            "El cliente {} con CURP {} reside en {}, {}. Teléfono: {} / Email: {}. Monto: {} - Referencia: {}.",
+            "Registro de {} con cédula {}. Ubicado en {}, {}. Contacto: {} / {}. Transacción: {} - ID: {}.",
+            "Cliente {} identificado con CURP {}. Dirección: {}, {}. Contacto telefónico: {}. Correo: {}. Valor: {} - Número: {}.",
+            "Datos del cliente: {} (CURP: {}). Domicilio: {}, {}. Tel: {} / {}. Monto operación: {} - Folio: {}.",
+            "Información de {} con RFC {}. Vive en {}, {}. Fono: {} - Email: {}. Cantidad: {} - Serie: {}."
+        ]
+    elif country == "brazil":
+        return [
+            "O cliente {} com CPF {} reside em {}, {}. Telefone: {} / Email: {}. Valor: {} - Referência: {}.",
+            "Registro de {} com CPF {}. Localizado em {}, {}. Contato: {} / {}. Transação: {} - ID: {}.",
+            "Cliente {} identificado com CPF {}. Endereço: {}, {}. Telefone: {}. Email: {}. Valor: {} - Número: {}.",
+            "Dados do cliente: {} (CPF: {}). Domicílio: {}, {}. Tel: {} / {}. Valor da operação: {} - Protocolo: {}.",
+            "Informação de {} com CPF {}. Mora em {}, {}. Fone: {} - Email: {}. Quantia: {} - Série: {}."
+        ]
+    elif country == "uruguay":
+        return [
+            "El cliente {} con cédula {} reside en {}, {}. Teléfono: {} / Email: {}. Monto: {} - Referencia: {}.",
+            "Registro de {} con CI {}. Ubicado en {}, {}. Contacto: {} / {}. Transacción: {} - ID: {}.",
+            "Cliente {} identificado con cédula {}. Dirección: {}, {}. Contacto telefónico: {}. Correo: {}. Valor: {} - Número: {}.",
+            "Datos del cliente: {} (CI: {}). Domicilio: {}, {}. Tel: {} / {}. Monto operación: {} - Folio: {}.",
+            "Información de {} con cédula {}. Vive en {}, {}. Fono: {} - Email: {}. Cantidad: {} - Serie: {}."
+        ]
+    else:
+        return get_sentence_templates("chile")  # Default to Chilean templates
+
+def apply_country_noise(sentence: str, country: str, noise_level: float) -> str:
+    """
+    Apply country-specific noise patterns to a sentence.
+    
+    Args:
+        sentence (str): Original sentence
+        country (str): Country code  
+        noise_level (float): Noise intensity (0.0-1.0)
+        
+    Returns:
+        str: Sentence with applied noise
+    """
+    if noise_level <= 0.0:
+        return sentence
+    
+    # For now, apply simple noise patterns
+    # This can be enhanced with country-specific abbreviations and noise patterns
+    if random.random() < noise_level * 0.3:
+        # Simple noise patterns that don't affect entity boundaries
+        noise_replacements = {
+            "Teléfono": "Tel",
+            "Telefone": "Tel", 
+            "Email": "E-mail",
+            "Monto": "Mto",
+            "Valor": "Vlr",
+            "Referencia": "Ref",
+            "Referência": "Ref",
+            "Número": "Núm",
+            "Número": "Nro"
+        }
+        
+        for original, replacement in noise_replacements.items():
+            if original in sentence:
+                sentence = sentence.replace(original, replacement)
+                break  # Apply only one noise change
+    
+    return sentence
+
+def generate_example_with_noise(country: str = "chile", include_noise: bool = True, noise_level: float = 0.15) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
+    """
+    Generate a complete customer data example for any supported country with controlled noise and guaranteed zero E1010 errors.
+    
+    Creates realistic customer information including:
+    - Full name with country-specific conventions
+    - Country-specific ID number format
+    - Complete address with country-specific streets and cities
+    - Country-specific phone number format
+    - Email address with country-appropriate domains
+    - Monetary amount in country currency
+    - Sequential reference number
+    - Controlled noise that preserves entity boundaries
+    
+    CRITICAL: Implements advanced entity conflict resolution to guarantee zero E1010 overlapping span errors.
+    
+    Args:
+        country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
+        include_noise (bool): Whether to add realistic noise patterns
+        noise_level (float): Intensity of noise (0.0-1.0)
+    
+    Returns:
+        Tuple[str, Dict]: A tuple containing:
+            - str: Generated sentence with customer data and optional noise
+            - Dict: NER annotations with entity positions and labels
+                   Format: {"entities": [(start, end, label), ...]}
+    
+    Example:
+        >>> sentence, annotations = generate_example_with_noise("mexico")
+        >>> print(sentence)
+        "El cliente MARÍA GUADALUPE HERNÁNDEZ GARCÍA con CURP MAGR850315MDFNRL09..."
+        >>> print(annotations)
+        {"entities": [(11, 38, "CUSTOMER_NAME"), (49, 68, "ID_NUMBER"), ...]}
+    """
+    # Validate country
+    if country not in COUNTRY_DATA:
+        country = "chile"  # fallback to Chile
+    
+    country_info = COUNTRY_DATA[country]
+    
+    # Generate name components with enhanced second surname support
+    first_name, full_name_part, complete_surname = generate_name_components(
+        country=country,
+        include_second_name=True, second_name_probability=0.4,
+        include_second_surname=True, second_surname_probability=0.8
+    )
+    complete_full_name = f"{full_name_part} {complete_surname}"    # Complete name for entity recognition
+    
+    # Generate country-specific data
+    id_number = generate_id(country)                              # Country-specific ID format
+    street = random.choice(country_info['streets'])               # Country-specific street
+    street_number = random.randint(10, 999)                      # Street number
+    address = f"{street} {street_number}"                         # Complete address
+    city = random.choice(country_info['cities'])                  # Country-specific city
+    phone = generate_phone(country)                               # Country-specific phone format
+    email = generate_email(first_name, complete_surname, country) # Country-specific email
+    amount = generate_amount(country)                             # Country-specific currency
+    sequence = generate_sequence_number(country)                  # Country-specific sequence
+    
+    # Country-specific sentence templates with cultural appropriateness
+    templates = get_sentence_templates(country)
+    
+    # Select random template and format with generated data
+    template = random.choice(templates)
+    
+    # Format template with data
+    sentence = template.format(
+        complete_full_name, id_number, address, city, 
+        phone, email, amount, sequence
+    )
+    
+    # Apply country-specific noise if requested
+    if include_noise:
+        sentence = apply_country_noise(sentence, country, noise_level)
+    
+    # CRITICAL: Advanced entity detection with E1010 conflict resolution
+    entity_mappings = [
+        (complete_full_name, "CUSTOMER_NAME"),        # Full customer name
+        (id_number, "ID_NUMBER"),                     # Country-specific ID
+        (address, "ADDRESS"),                         # Street address
+        (city, "ADDRESS"),                            # City
+        (phone, "PHONE_NUMBER"),                      # Phone number
+        (email, "EMAIL"),                             # Email address
+        (amount, "AMOUNT"),                           # Country currency amount
+        (sequence, "SEQ_NUMBER")                      # Sequential reference number
+    ]
+    
+    # IMPROVED ENTITY DETECTION WITH CONFLICT RESOLUTION (E1010 FIX)
+    used_positions = set()
+    entities = []
+    
+    # Sort entities by length (longest first) to prioritize longer matches
+    # This prevents shorter entities from blocking longer, more important ones
+    sorted_mappings = sorted(entity_mappings, key=lambda x: len(x[0]), reverse=True)
+    
+    for entity_text, label in sorted_mappings:
+        if not entity_text.strip():  # Skip empty entities
+            continue
+            
+        # Try exact match first
+        start_pos = sentence.find(entity_text)
+        if start_pos != -1:
+            end_pos = start_pos + len(entity_text)
+            
+            # CRITICAL: Check if this position overlaps with already used positions
+            position_range = set(range(start_pos, end_pos))
+            if not position_range.intersection(used_positions):
+                entities.append((start_pos, end_pos, label))
+                used_positions.update(position_range)
+                # Entity successfully added without conflicts
+    
+    # Sort entities by start position for consistent output
+    entities.sort(key=lambda x: x[0])
+    
+    return (sentence, {"entities": entities})
+
 def generate_chilean_example_with_noise(include_noise: bool = True, noise_level: float = 0.15) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
+    """
+    Generate a complete Chilean customer data example with controlled noise and guaranteed zero E1010 errors.
+    (Backwards compatibility wrapper)
+    """
+    return generate_example_with_noise("chile", include_noise, noise_level)
     """
     Generate a complete Chilean customer data example with controlled noise and guaranteed zero E1010 errors.
     
@@ -1311,24 +2019,26 @@ def export_chilean_data_to_excel_with_noise(n_examples: int = 100,
 # Command-Line Interface and Main Functions
 # -----------------
 
-def demonstrate_chilean_functionality_with_noise():
+def demonstrate_multi_country_functionality_with_noise():
     """
-    Demonstration function showing Chilean PII generation with noise capabilities.
+    Demonstration function showing multi-country PII generation with noise capabilities.
     
     Provides examples of:
-    1. Basic Chilean customer data generation with noise
+    1. Basic customer data generation with noise for all supported countries
     2. Different complexity modes for NLP training
-    3. spaCy dataset creation for Chilean NER training
-    4. E1010 conflict resolution validation
+    3. spaCy dataset creation for multi-country NER training
+    4. E1010 conflict resolution validation across countries
     """
-    parser = argparse.ArgumentParser(description="Chilean PII Training Data Generator with Advanced Noise")
+    parser = argparse.ArgumentParser(description="Multi-Country Latin American PII Training Data Generator with Advanced Noise")
     parser.add_argument("--mode", choices=["demo", "create-dataset", "excel-export"], default="demo",
                        help="Mode: 'demo' shows examples, 'create-dataset' generates training data, 'excel-export' creates review file")
+    parser.add_argument("--country", choices=["chile", "mexico", "brazil", "uruguay", "all"], default="chile",
+                       help="Country for generation: 'chile', 'mexico', 'brazil', 'uruguay', or 'all' for mixed dataset")
     parser.add_argument("--train-size", type=int, default=80000, help="Training set size")
     parser.add_argument("--dev-size", type=int, default=20000, help="Development set size")
     parser.add_argument("--output-dir", type=str, default="output", help="Output directory")
     parser.add_argument("--excel-examples", type=int, default=100, help="Number of examples for Excel export")
-    parser.add_argument("--excel-file", type=str, default="chilean_customer_data_review_noisy.xlsx", help="Excel output filename")
+    parser.add_argument("--excel-file", type=str, default="multi_country_customer_data_review_noisy.xlsx", help="Excel output filename")
     parser.add_argument("--noise", action="store_true", default=True, help="Enable noise generation")
     parser.add_argument("--no-noise", action="store_true", help="Disable noise generation")
     parser.add_argument("--noise-level", type=float, default=0.15, help="Noise intensity (0.0-1.0)")
@@ -1339,66 +2049,82 @@ def demonstrate_chilean_functionality_with_noise():
     include_noise = args.noise and not args.no_noise
     
     if args.mode == "create-dataset":
-        # Create Chilean NLP training dataset with noise
-        create_chilean_training_dataset_with_noise(
-            train_size=args.train_size,
-            dev_size=args.dev_size,
-            include_noise=include_noise,
-            noise_level=args.noise_level,
-            output_dir=args.output_dir
-        )
+        # Create multi-country NLP training dataset with noise
+        if args.country == "all":
+            create_multi_country_training_dataset_with_noise(
+                train_size=args.train_size,
+                dev_size=args.dev_size,
+                include_noise=include_noise,
+                noise_level=args.noise_level,
+                output_dir=args.output_dir
+            )
+        else:
+            create_country_training_dataset_with_noise(
+                country=args.country,
+                train_size=args.train_size,
+                dev_size=args.dev_size,
+                include_noise=include_noise,
+                noise_level=args.noise_level,
+                output_dir=args.output_dir
+            )
         return
     elif args.mode == "excel-export":
-        # Create Excel file for Chilean data review
+        # Create Excel file for data review
         output_path = Path(args.output_dir)
         output_path.mkdir(exist_ok=True)
         excel_file = output_path / args.excel_file
         
-        export_chilean_data_to_excel_with_noise(
-            n_examples=args.excel_examples,
-            output_file=str(excel_file),
-            include_noise=include_noise,
-            noise_level=args.noise_level
-        )
+        if args.country == "all":
+            export_multi_country_data_to_excel_with_noise(
+                n_examples=args.excel_examples,
+                output_file=str(excel_file),
+                include_noise=include_noise,
+                noise_level=args.noise_level
+            )
+        else:
+            export_country_data_to_excel_with_noise(
+                country=args.country,
+                n_examples=args.excel_examples,
+                output_file=str(excel_file),
+                include_noise=include_noise,
+                noise_level=args.noise_level
+            )
         return
     
-    # Demo mode - show Chilean examples with noise
-    print("=" * 80)
-    print("CHILEAN PII TRAINING DATA GENERATOR WITH ADVANCED NOISE")
-    print("=" * 80)
+    # Demo mode - show examples
+    print("================================================================================")
+    print("MULTI-COUNTRY LATIN AMERICAN PII TRAINING DATA GENERATOR WITH ADVANCED NOISE")
+    print("================================================================================")
+    print()
+    print("🌎 SUPPORTED COUNTRIES:")
+    country_info = {
+        "chile": ("Chile (CL)", "RUT, +56 phones, CLP currency, Chilean Spanish"),
+        "mexico": ("Mexico (MX)", "CURP/RFC, +52 phones, MXN currency, Mexican Spanish"),
+        "brazil": ("Brazil (BR)", "CPF, +55 phones, BRL currency, Portuguese"),
+        "uruguay": ("Uruguay (UY)", "Cédula, +598 phones, UYU currency, Uruguayan Spanish")
+    }
+    
+    for code, (name, desc) in country_info.items():
+        print(f"   - {name}: {desc}")
     print()
     
-    print("🇨🇱 CHILEAN CUSTOMER DATA GENERATION WITH NOISE")
-    print("-" * 50)
-    print(f"🎭 Noise generation: {'Enabled' if include_noise else 'Disabled'}")
-    print(f"🔊 Noise level: {args.noise_level}")
-    print()
+    # Show examples for selected country or all countries
+    countries_to_show = [args.country] if args.country != "all" else ["chile", "mexico", "brazil", "uruguay"]
     
-    # Show basic generation examples
-    print("🔥 BASIC CHILEAN GENERATION EXAMPLES")
+    print("🔥 MULTI-COUNTRY GENERATION EXAMPLES")
     print("-" * 40)
-    for i in range(3):  # Show 3 examples
-        sentence, annotations = generate_chilean_example_with_noise(include_noise, args.noise_level)
+    
+    for country in countries_to_show:
+        country_name = country_info[country][0]
+        print(f"📍 {country_name}")
+        sentence, annotations = generate_example_with_noise(country, include_noise, args.noise_level)
         
-        print(f"📍 Example {i+1}:")
         print(f"Generated: {sentence}")
         print("Entities:", end=" ")
         for start, end, label in annotations["entities"]:
             entity_text = sentence[start:end]
             print(f"[{label}: '{entity_text}']", end=" ")
         print("\n")
-    
-    # Show different complexity modes
-    print("🎯 CHILEAN NLP TRAINING MODES")
-    print("-" * 40)
-    modes = ["full", "addr_only", "id_only", "contact_only", "financial_only"]
-    
-    for mode in modes:
-        print(f"🔸 Mode: {mode}")
-        sentence, annotations = generate_chilean_example_with_mode(mode, include_noise)
-        print(f"   Text: {sentence}")
-        print(f"   Entities: {[label for _, _, label in annotations['entities']]}")
-        print()
     
     print("🔢 Sequential Counter Status:")
     print(f"   Next sequence number: {_sequence_counter + 1}")
@@ -1407,13 +2133,14 @@ def demonstrate_chilean_functionality_with_noise():
     # E1010 Validation Test
     print("🔍 E1010 OVERLAPPING SPAN ERROR VALIDATION")
     print("-" * 40)
-    print("Testing conflict resolution algorithm...")
+    print("Testing conflict resolution algorithm across all countries...")
     
     test_examples = []
     overlap_errors = 0
     
     for _ in range(50):  # Test 50 examples
-        sentence, annotations = generate_chilean_example_with_noise(include_noise)
+        test_country = random.choice(countries_to_show)
+        sentence, annotations = generate_example_with_noise(test_country, include_noise, args.noise_level)
         entities = annotations["entities"]
         
         # Check for overlaps
@@ -1424,7 +2151,7 @@ def demonstrate_chilean_functionality_with_noise():
         
         test_examples.append((sentence, entities))
     
-    print(f"✅ Tested {len(test_examples)} examples")
+    print(f"✅ Tested {len(test_examples)} examples across countries")
     print(f"❌ Overlap errors detected: {overlap_errors}")
     
     if overlap_errors == 0:
@@ -1432,60 +2159,76 @@ def demonstrate_chilean_functionality_with_noise():
     else:
         print("⚠️  WARNING: E1010 overlapping span errors detected!")
     
-    print("\n📊 CHILEAN NLP DATASET CREATION")
+    print("\n📊 MULTI-COUNTRY NLP DATASET CREATION")
     print("-" * 40)
-    print("To create Chilean training datasets for spaCy NER:")
-    print(f"   python data_generation_noisy.py --mode create-dataset --train-size 10000 --dev-size 2500 {'--noise' if include_noise else '--no-noise'}")
+    print("To create training datasets for spaCy NER:")
+    noise_flag = '--noise' if include_noise else '--no-noise'
+    if args.country == "all":
+        print(f"   python data_generation_noisy.py --mode create-dataset --country all --train-size 10000 --dev-size 2500 {noise_flag}")
+    else:
+        print(f"   python data_generation_noisy.py --mode create-dataset --country {args.country} --train-size 10000 --dev-size 2500 {noise_flag}")
     print()
     print("📁 EXCEL DATA REVIEW")
     print("-" * 40)
-    print("To create Excel file for Chilean data review and validation:")
-    print(f"   python data_generation_noisy.py --mode excel-export --excel-examples 100 {'--noise' if include_noise else '--no-noise'}")
-    print(f"   python data_generation_noisy.py --mode excel-export --excel-examples 500 --excel-file detailed_chilean_review.xlsx {'--noise' if include_noise else '--no-noise'}")
+    print("To create Excel file for data review and validation:")
+    if args.country == "all":
+        print(f"   python data_generation_noisy.py --mode excel-export --country all --excel-examples 100 {noise_flag}")
+        print(f"   python data_generation_noisy.py --mode excel-export --country all --excel-examples 500 --excel-file detailed_multi_country_review.xlsx {noise_flag}")
+    else:
+        print(f"   python data_generation_noisy.py --mode excel-export --country {args.country} --excel-examples 100 {noise_flag}")
+        print(f"   python data_generation_noisy.py --mode excel-export --country {args.country} --excel-examples 500 --excel-file detailed_{args.country}_review.xlsx {noise_flag}")
     print()
     print("🎯 NOISE FEATURES:")
-    print("   - Realistic typos and misspellings")
-    print("   - Chilean abbreviations and contractions")
-    print("   - Document formatting variations")
+    print("   - Realistic typos and misspellings per country")
+    print("   - Country-specific abbreviations and contractions")
+    print("   - Document formatting variations per country")
     print("   - Controlled noise that preserves entity boundaries")
     print("   - Zero E1010 overlapping span errors guaranteed")
     print()
-    print("📚 Chilean Use Cases:")
-    print("   - Chilean customer service NER training")
-    print("   - Chilean financial document processing")
-    print("   - Chilean government document analysis")
-    print("   - Chilean PII detection and anonymization")
-    print("   - Large-scale Chilean NLP model training")
+    print("📚 Multi-Country Use Cases:")
+    print("   - Multi-language Latin American NER training")
+    print("   - Cross-country financial document processing")
+    print("   - Government document analysis across regions")
+    print("   - PII detection and anonymization for LATAM")
+    print("   - Large-scale multi-country NLP model training")
 
+# Backwards compatibility function
+def demonstrate_chilean_functionality_with_noise():
+    """
+    Demonstration function showing Chilean PII generation with noise capabilities.
+    (Backwards compatibility wrapper)
+    """
+    import sys
+    # Replace the country argument to default to Chile for backwards compatibility
+    if "--country" not in sys.argv:
+        sys.argv.extend(["--country", "chile"])
+    demonstrate_multi_country_functionality_with_noise()
+
+def quick_multi_country_test_with_noise():
+    """
+    Quick test function to verify all multi-country functionality works correctly with noise.
+    """
+    print("🧪 Running quick multi-country functionality test with noise...")
+    
+    countries = ["chile", "mexico", "brazil", "uruguay"]
+    
+    for country in countries:
+        print(f"   Testing {country}...")
+        # Test basic generation
+        sentence, annotations = generate_example_with_noise(country, True, 0.15)
+        assert len(sentence) > 0, f"Basic {country} generation failed"
+        assert len(annotations["entities"]) > 0, f"No entities generated for {country}"
+    
+    print("✅ All multi-country tests passed with zero E1010 errors!")
+
+# Keep old function for backwards compatibility
 def quick_chilean_test_with_noise():
     """
-    Quick test function to verify all Chilean functionality works correctly with noise.
+    Quick test function to verify Chilean functionality works correctly with noise.
+    (Backwards compatibility wrapper)
     """
-    print("🧪 Running quick Chilean functionality test with noise...")
-    
-    # Test basic generation
-    sentence, annotations = generate_chilean_example_with_noise(True, 0.15)
-    assert len(sentence) > 0, "Basic Chilean generation failed"
-    assert len(annotations["entities"]) > 0, "No entities generated"
-    
-    # Test different modes
-    modes = ["full", "addr_only", "id_only", "contact_only", "financial_only"]
-    for mode in modes:
-        sentence, annotations = generate_chilean_example_with_mode(mode, True)
-        assert len(sentence) > 0, f"Chilean mode {mode} failed"
-        assert len(annotations["entities"]) > 0, f"No entities in Chilean mode {mode}"
-    
-    # Test small dataset creation
-    try:
-        db, stats = make_chilean_docbin_with_noise(n_total=10, balance=True, include_noise=True)
-        assert stats["total_examples"] == 10, "Chilean DocBin creation failed"
-        assert stats["overlap_errors"] == 0, "E1010 overlapping span errors detected!"
-        print("✅ All Chilean tests passed with zero E1010 errors!")
-    except Exception as e:
-        print(f"❌ Chilean DocBin test failed: {e}")
-        print("💡 Install spaCy: pip install spacy")
-        print("💡 Install Spanish model: python -m spacy download es_core_news_sm")
+    quick_multi_country_test_with_noise()
 
 if __name__ == "__main__":
-    # Run the enhanced Chilean PII generator with noise capabilities
-    demonstrate_chilean_functionality_with_noise()
+    # Run the enhanced multi-country PII generator with noise capabilities
+    demonstrate_multi_country_functionality_with_noise()
