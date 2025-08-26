@@ -1,6 +1,8 @@
 """
 Multi-Country Latin American PII Training Data Generator with Advanced Noise Generation
 =======================================================================================
+Change the size of the training and development datasets
+RUN : python3 data_generation_noisy.py --mode create-dataset --country all --train-size 1000 --dev-size 200 --noise --noise-level 0.5
 
 This module generates realistic customer data for multiple Latin American countries with 
 controlled noise patterns specifically designed for Named Entity Recognition (NER) training. 
@@ -62,6 +64,7 @@ import pandas as pd
 from datetime import datetime
 import argparse
 import re
+import sys
 
 # Global sequence counter for generating unique sequential IDs
 _sequence_counter = 10000
@@ -575,58 +578,55 @@ def generate_name_components(country: str = "chile",
                            include_second_surname: bool = True, 
                            second_surname_probability: float = 0.8) -> Tuple[str, str, str]:
     """
-    Generate name components with enhanced second surname support for any supported country.
+    Generate realistic name components for the specified country.
     
-    Creates authentic naming patterns for each country including:
-    - First name (required)
-    - Optional second name (compound first names like "Juan Carlos", "María José")
-    - Paternal surname (required)
-    - Optional maternal surname (common in Latin America)
+    Creates a complete name with culturally appropriate variations:
+    - First name (always included)
+    - Optional second name (e.g., "Juan Carlos")
+    - Paternal surname (always included)
+    - Optional maternal surname (e.g., "González Rodríguez")
     
     Args:
         country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
-        include_second_name (bool): Whether to allow second names
-        second_name_probability (float): Probability of including a second name (0.0-1.0)
-        include_second_surname (bool): Whether to allow second surnames
-        second_surname_probability (float): Probability of including maternal surname (0.0-1.0)
-    
+        include_second_name (bool): Whether to include a second name
+        second_name_probability (float): Probability of adding a second name
+        include_second_surname (bool): Whether to include a second surname
+        second_surname_probability (float): Probability of adding a second surname
+        
     Returns:
-        Tuple[str, str, str]: (first_name, full_name_part, complete_surname)
-        - first_name: Just the first name for email generation
-        - full_name_part: First name + optional second name
-        - complete_surname: Paternal + optional maternal surname
-    
-    Examples:
-        ("JUAN", "JUAN CARLOS", "GONZÁLEZ RODRÍGUEZ")
-        ("MARÍA", "MARÍA JOSÉ", "SILVA MARTÍNEZ")
-        ("PEDRO", "PEDRO", "LÓPEZ")
+        Tuple[str, str, str]: A tuple containing:
+            - str: First name only
+            - str: Full name part (first name + optional second name)
+            - str: Complete surname (paternal + optional maternal)
     """
-    # Get country-specific data
+    # Fallback to Chile if country not found
     if country not in COUNTRY_DATA:
-        country = "chile"  # fallback to Chile
-    
+        country = "chile"
+        
     country_info = COUNTRY_DATA[country]
     
-    # Generate first name
+    # 1. Generate first name
     first_name = random.choice(country_info['first_names'])
-    
-    # Generate paternal surname (always required)
-    paternal_surname = random.choice(country_info['surnames'])
-    
-    # Decide on second name
     full_name_part = first_name
-    if include_second_name and random.random() < second_name_probability:
-        second_name = random.choice(country_info['second_names'])
-        full_name_part = f"{first_name} {second_name}"
     
-    # Decide on maternal surname
+    # 2. Generate optional second name
+    if include_second_name and random.random() < second_name_probability:
+        second_name = random.choice(country_info['first_names'])
+        while second_name == first_name:  # Ensure second name is different
+            second_name = random.choice(country_info['first_names'])
+        full_name_part = f"{first_name} {second_name}"
+        
+    # 3. Generate paternal surname
+    paternal_surname = random.choice(country_info['surnames'])
     complete_surname = paternal_surname
+    
+    # 4. Generate optional maternal surname
     if include_second_surname and random.random() < second_surname_probability:
         maternal_surname = random.choice(country_info['surnames'])
-        # Ensure different surnames
-        if maternal_surname != paternal_surname:
-            complete_surname = f"{paternal_surname} {maternal_surname}"
-    
+        while maternal_surname == paternal_surname:  # Ensure surnames are different
+            maternal_surname = random.choice(country_info['surnames'])
+        complete_surname = f"{paternal_surname} {maternal_surname}"
+        
     return first_name, full_name_part, complete_surname
 
 def generate_chilean_name_components(include_second_name: bool = True, 
@@ -642,58 +642,121 @@ def generate_chilean_name_components(include_second_name: bool = True,
 
 def generate_phone(country: str = "chile") -> str:
     """
-    Generate a realistic phone number for the specified country.
+    Generate a realistic phone number for the specified country WITHOUT international prefixes.
     
-    Country-specific phone formats:
-    - Chile: +56 9 XXXX XXXX (mobile) or +56 2 XXXX XXXX (landline)
-    - Mexico: +52 1 XXX XXX XXXX (mobile) or +52 XX XXXX XXXX (landline)
-    - Brazil: +55 XX 9XXXX XXXX (mobile) or +55 XX XXXX XXXX (landline)  
-    - Uruguay: +598 9X XXX XXX (mobile) or +598 2XXX XXXX (landline)
+    Uses realistic local formats as they appear in documents:
+    - Chile: 987654321, 9 8765 4321, 987-654-321 (mobile) or 223456789, 2-2345-6789 (landline)
+    - Mexico: 5512345678, 55 1234 5678, 55-1234-5678 (mobile) or 8112345678 (landline)
+    - Brazil: 11987654321, 11 98765-4321, (11) 98765-4321 (mobile) or 1123456789 (landline)
+    - Uruguay: 91234567, 91 234 567, 91-234-567 (mobile) or 24123456 (landline)
     
     Args:
         country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
         
     Returns:
-        str: Formatted phone number
+        str: Realistic local phone number format
     """
     if country == "chile":
         # 80% mobile, 20% landline
         if random.random() < 0.8:
-            # Mobile phone (+56 9)
-            return f"+56 9 {random.randint(1000,9999)} {random.randint(1000,9999)}"
+            # Mobile phone (9XXXXXXXX) - various formats
+            base_number = f"9{random.randint(10000000,99999999)}"
+            format_choice = random.choice([
+                lambda n: n,                                    # 987654321 (all together)
+                lambda n: f"{n[0]} {n[1:5]} {n[5:]}",          # 9 8765 4321 (spaced)
+                lambda n: f"{n[0:3]}-{n[3:6]}-{n[6:]}",        # 987-654-321 (hyphens)
+                lambda n: f"{n[0:3]} {n[3:6]} {n[6:]}",        # 987 654 321 (all spaced)
+            ])
+            return format_choice(base_number)
         else:
-            # Santiago landline (+56 2)
-            return f"+56 2 {random.randint(2000,9999)} {random.randint(1000,9999)}"
+            # Santiago landline (2XXXXXXXX)
+            base_number = f"2{random.randint(20000000,29999999)}"
+            format_choice = random.choice([
+                lambda n: n,                                    # 223456789 (all together)
+                lambda n: f"{n[0]}-{n[1:5]}-{n[5:]}",          # 2-2345-6789 (hyphens)
+                lambda n: f"{n[0:3]} {n[3:7]} {n[7:]}",        # 223 4567 89 (spaced)
+            ])
+            return format_choice(base_number)
     
     elif country == "mexico":
         # 85% mobile, 15% landline
         if random.random() < 0.85:
-            # Mobile phone (+52 1)
-            return f"+52 1 {random.randint(100,999)} {random.randint(100,999)} {random.randint(1000,9999)}"
-        else:
-            # Landline (+52 city_code)
+            # Mobile phone (city_code + 10 digits total)
             city_code = random.choice([55, 33, 81, 222, 664])  # Mexico City, Guadalajara, Monterrey, Puebla, Tijuana
-            return f"+52 {city_code} {random.randint(1000,9999)} {random.randint(1000,9999)}"
+            remaining_digits = 10 - len(str(city_code))
+            phone_number = f"{city_code}{random.randint(10**(remaining_digits-1), 10**remaining_digits-1)}"
+            
+            format_choice = random.choice([
+                lambda n: n,                                    # 5512345678 (all together)
+                lambda n: f"{n[:2]} {n[2:6]} {n[6:]}",         # 55 1234 5678 (spaced)
+                lambda n: f"{n[:2]}-{n[2:6]}-{n[6:]}",         # 55-1234-5678 (hyphens)
+                lambda n: f"({n[:2]}) {n[2:6]}-{n[6:]}",       # (55) 1234-5678 (parentheses)
+            ])
+            return format_choice(phone_number)
+        else:
+            # Landline (same format as mobile but different pattern)
+            city_code = random.choice([55, 33, 81, 222, 664])
+            remaining_digits = 10 - len(str(city_code))
+            phone_number = f"{city_code}{random.randint(10**(remaining_digits-1), 10**remaining_digits-1)}"
+            
+            format_choice = random.choice([
+                lambda n: n,                                    # 8112345678 (all together)
+                lambda n: f"{n[:2]} {n[2:6]} {n[6:]}",         # 81 1234 5678 (spaced)
+                lambda n: f"({n[:2]}) {n[2:6]}-{n[6:]}",       # (81) 1234-5678 (parentheses)
+            ])
+            return format_choice(phone_number)
     
     elif country == "brazil":
         # 90% mobile, 10% landline
+        area_code = random.choice([11, 21, 31, 47, 85])  # São Paulo, Rio, Belo Horizonte, Joinville, Fortaleza
+        
         if random.random() < 0.9:
-            # Mobile phone (+55 XX 9XXXX XXXX)
-            area_code = random.choice([11, 21, 31, 47, 85])  # São Paulo, Rio, Belo Horizonte, Joinville, Fortaleza
-            return f"+55 {area_code} 9{random.randint(1000,9999)} {random.randint(1000,9999)}"
+            # Mobile phone (XX 9XXXX-XXXX)
+            mobile_number = f"9{random.randint(10000000,99999999)}"
+            full_number = f"{area_code}{mobile_number}"
+            
+            format_choice = random.choice([
+                lambda n: n,                                    # 11987654321 (all together)
+                lambda n: f"{n[:2]} {n[2:7]}-{n[7:]}",         # 11 98765-4321 (area + hyphen)
+                lambda n: f"({n[:2]}) {n[2:7]}-{n[7:]}",       # (11) 98765-4321 (parentheses)
+                lambda n: f"{n[:2]} {n[2:7]} {n[7:]}",         # 11 98765 4321 (all spaced)
+            ])
+            return format_choice(full_number)
         else:
-            # Landline (+55 XX XXXX XXXX)
-            area_code = random.choice([11, 21, 31, 47, 85])
-            return f"+55 {area_code} {random.randint(2000,9999)} {random.randint(1000,9999)}"
+            # Landline (XX XXXX-XXXX)
+            landline_number = f"{random.randint(20000000,99999999)}"
+            full_number = f"{area_code}{landline_number}"
+            
+            format_choice = random.choice([
+                lambda n: n,                                    # 1123456789 (all together)
+                lambda n: f"{n[:2]} {n[2:6]}-{n[6:]}",         # 11 2345-6789 (area + hyphen)
+                lambda n: f"({n[:2]}) {n[2:6]}-{n[6:]}",       # (11) 2345-6789 (parentheses)
+            ])
+            return format_choice(full_number)
     
     elif country == "uruguay":
         # 85% mobile, 15% landline
         if random.random() < 0.85:
-            # Mobile phone (+598 9X XXX XXX)
-            return f"+598 9{random.randint(1,9)} {random.randint(100,999)} {random.randint(100,999)}"
+            # Mobile phone (9XXXXXXX - 8 digits)
+            mobile_number = f"9{random.randint(1000000,9999999)}"
+            
+            format_choice = random.choice([
+                lambda n: n,                                    # 91234567 (all together)
+                lambda n: f"{n[:2]} {n[2:5]} {n[5:]}",         # 91 234 567 (spaced)
+                lambda n: f"{n[:2]}-{n[2:5]}-{n[5:]}",         # 91-234-567 (hyphens)
+                lambda n: f"{n[:3]} {n[3:6]} {n[6:]}",         # 912 345 67 (alternative spacing)
+            ])
+            return format_choice(mobile_number)
         else:
-            # Montevideo landline (+598 2XXX XXXX)
-            return f"+598 2{random.randint(100,999)} {random.randint(1000,9999)}"
+            # Montevideo landline (2XXXXXXX - 8 digits)
+            landline_number = f"2{random.randint(1000000,9999999)}"
+            
+            format_choice = random.choice([
+                lambda n: n,                                    # 24123456 (all together)
+                lambda n: f"{n[:2]} {n[2:5]} {n[5:]}",         # 24 123 456 (spaced)
+                lambda n: f"{n[:4]}-{n[4:]}",                  # 2412-3456 (hyphen)
+            ])
+            return format_choice(landline_number)
     
     else:
         # Default to Chilean format
@@ -780,29 +843,89 @@ def generate_id(country: str = "chile") -> str:
         str: Formatted identification number
     """
     if country == "chile":
-        # Chilean RUT (Rol Único Tributario)
-        rut_number = random.randint(10_000_000, 30_000_000)
-        check_digit = random.choice(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'K'])
-        rut_str = f"{rut_number:,}".replace(',', '.')
-        return f"{rut_str}-{check_digit}"
+        # Chilean RUT (Rol Único Tributario) with valid check digit
+        rut_base = random.randint(7_000_000, 25_000_000)
+        s = str(rut_base)[::-1]
+        multipliers = [2, 3, 4, 5, 6, 7] * 2
+        checksum = sum(int(digit) * multipliers[i] for i, digit in enumerate(s))
+        check_digit_val = 11 - (checksum % 11)
+        if check_digit_val == 11:
+            check_digit = '0'
+        elif check_digit_val == 10:
+            check_digit = 'K'
+        else:
+            check_digit = str(check_digit_val)
+        
+        # Realistic formatting variations
+        format_choice = random.random()
+        if format_choice < 0.4:  # 40% - Standard format with dots
+            rut_str = f"{rut_base:,}".replace(',', '.')
+            return f"{rut_str}-{check_digit}"
+        elif format_choice < 0.7:  # 30% - Format with commas
+            rut_str = f"{rut_base:,}"
+            return f"{rut_str}-{check_digit}"
+        else:  # 30% - No separators
+            return f"{rut_base}-{check_digit}"
     
     elif country == "mexico":
-        # Mexican CURP (Clave Única de Registro de Población) - simplified version
+        # Mexican CURP (Clave Única de Registro de Población) - simplified but valid structure
         if random.random() < 0.7:  # 70% CURP
             letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             vowels = "AEIOU"
-            return f"{random.choice(letters)}{random.choice(vowels)}{random.choice(letters)}{random.choice(letters)}{random.randint(10,99)}{random.randint(1,12):02}{random.randint(1,28):02}H{random.choice(['DF', 'GD', 'GT', 'JL', 'MC', 'MN', 'NL', 'PB', 'SL', 'VZ'])}{random.choice(letters)}{random.choice(letters)}{random.randint(10,99)}"
-        else:  # 30% RFC
+            year = random.randint(60, 99)
+            month = random.randint(1, 12)
+            day = random.randint(1, 28)
+            state_codes = ['AS', 'BC', 'BS', 'CC', 'CS', 'CH', 'DF', 'CL', 'CM', 'DG', 'GT', 'GR', 'HG', 'JC', 'MC', 'MN', 'MS', 'NT', 'NL', 'PL', 'QT', 'QR', 'SP', 'SL', 'SR', 'TC', 'TS', 'TL', 'VZ', 'YN', 'ZS']
+            return f"{random.choice(letters)}{random.choice(vowels)}{random.choice(letters)}{random.choice(letters)}{year:02d}{month:02d}{day:02d}H{random.choice(state_codes)}{random.choice(letters)}{random.choice(letters)}{random.choice(letters)}{random.randint(0,9)}{random.randint(0,9)}"
+        else:  # 30% RFC (Registro Federal de Contribuyentes)
             letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            return f"{random.choice(letters)}{random.choice(letters)}{random.choice(letters)}{random.choice(letters)}{random.randint(100000,999999)}{random.choice(letters)}{random.choice(letters)}{random.randint(1,9)}"
+            year = random.randint(60, 99)
+            month = random.randint(1, 12)
+            day = random.randint(1, 28)
+            return f"{random.choice(letters)}{random.choice(letters)}{random.choice(letters)}{random.choice(letters)}{year:02d}{month:02d}{day:02d}{random.choice(letters)}{random.choice(letters)}{random.randint(1,9)}"
     
     elif country == "brazil":
-        # Brazilian CPF (Cadastro de Pessoas Físicas)
-        return f"{random.randint(100,999)}.{random.randint(100,999)}.{random.randint(100,999)}-{random.randint(10,99)}"
+        # Brazilian CPF (Cadastro de Pessoas Físicas) with valid check digits
+        base = [random.randint(0, 9) for _ in range(9)]
+        # Calculate first check digit
+        s = sum(base[i] * (10 - i) for i in range(9))
+        d1 = 11 - (s % 11)
+        if d1 >= 10:
+            d1 = 0
+        base.append(d1)
+        # Calculate second check digit
+        s = sum(base[i] * (11 - i) for i in range(10))
+        d2 = 11 - (s % 11)
+        if d2 >= 10:
+            d2 = 0
+        base.append(d2)
+        cpf = "".join(map(str, base))
+        
+        # Realistic formatting variations
+        format_choice = random.random()
+        if format_choice < 0.5:  # 50% - Standard format with dots
+            return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+        elif format_choice < 0.8:  # 30% - Format with commas
+            return f"{cpf[:3]},{cpf[3:6]},{cpf[6:9]}-{cpf[9:]}"
+        else:  # 20% - No separators
+            return f"{cpf[:9]}-{cpf[9:]}"
     
     elif country == "uruguay":
-        # Uruguayan Cédula de Identidad
-        return f"{random.randint(1,9)}.{random.randint(100,999)}.{random.randint(100,999)}-{random.randint(0,9)}"
+        # Uruguayan Cédula de Identidad with valid check digit
+        base = random.randint(1_000_000, 5_999_999)
+        s = str(base)
+        coeffs = "2987634"
+        checksum = sum(int(s[i]) * int(coeffs[i]) for i in range(7))
+        check_digit = (10 - (checksum % 10)) % 10
+        
+        # Realistic formatting variations
+        format_choice = random.random()
+        if format_choice < 0.5:  # 50% - Standard format with dots
+            return f"{base // 1_000_000}.{base % 1_000_000 // 1000:03d}.{base % 1000:03d}-{check_digit}"
+        elif format_choice < 0.8:  # 30% - Format with commas  
+            return f"{base // 1_000_000},{base % 1_000_000 // 1000:03d},{base % 1000:03d}-{check_digit}"
+        else:  # 20% - No separators
+            return f"{base}-{check_digit}"
     
     else:
         # Default to Chilean format
@@ -833,19 +956,64 @@ def generate_amount(country: str = "chile") -> str:
     """
     if country == "chile":
         amount = random.randint(10_000, 2_000_000)
-        return f"${amount:,} CLP".replace(',', '.')
+        amount_str = f"{amount:,}".replace(',', '.')
+        
+        # Realistic formatting variations for Chilean amounts
+        format_choice = random.random()
+        if format_choice < 0.3:  # 30% - Full format with symbol and currency
+            return f"${amount_str} CLP"
+        elif format_choice < 0.5:  # 20% - Only symbol
+            return f"${amount_str}"
+        elif format_choice < 0.7:  # 20% - Only currency code
+            return f"{amount_str} CLP"
+        else:  # 30% - Just the number (most challenging for model)
+            return amount_str
     
     elif country == "mexico":
         amount = random.randint(500, 100_000)
-        return f"${amount:,} MXN"
+        amount_str = f"{amount:,}"
+        
+        # Realistic formatting variations for Mexican amounts
+        format_choice = random.random()
+        if format_choice < 0.3:  # 30% - Full format with symbol and currency
+            return f"${amount_str} MXN"
+        elif format_choice < 0.5:  # 20% - Only symbol
+            return f"${amount_str}"
+        elif format_choice < 0.7:  # 20% - Only currency code
+            return f"{amount_str} MXN"
+        else:  # 30% - Just the number
+            return amount_str
     
     elif country == "brazil":
         amount = random.randint(50, 5_000)
-        return f"R$ {amount:,} BRL"
-    
+        # Brazilian currency format uses comma as decimal separator and dot for thousands
+        amount_str = f"{amount:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        
+        # Realistic formatting variations for Brazilian amounts
+        format_choice = random.random()
+        if format_choice < 0.3:  # 30% - Full format with symbol and currency
+            return f"R$ {amount_str} BRL"
+        elif format_choice < 0.5:  # 20% - Only symbol
+            return f"R$ {amount_str}"
+        elif format_choice < 0.7:  # 20% - Only currency code
+            return f"{amount_str} BRL"
+        else:  # 30% - Just the number
+            return amount_str
+
     elif country == "uruguay":
         amount = random.randint(1_000, 200_000)
-        return f"${amount:,} UYU"
+        amount_str = f"{amount:,}".replace(',', '.')
+        
+        # Realistic formatting variations for Uruguayan amounts
+        format_choice = random.random()
+        if format_choice < 0.3:  # 30% - Full format with symbol and currency
+            return f"$U {amount_str} UYU"
+        elif format_choice < 0.5:  # 20% - Only symbol
+            return f"$U {amount_str}"
+        elif format_choice < 0.7:  # 20% - Only currency code
+            return f"{amount_str} UYU"
+        else:  # 30% - Just the number
+            return amount_str
     
     else:
         # Default to Chilean format
@@ -875,11 +1043,22 @@ def generate_sequence_number(country: str = "chile") -> str:
         str: Sequential identifier
     """
     sequence_types = [
-        f"{random.randint(1000000, 9999999)}",  # 7-digit number
-        f"{random.randint(10000, 99999)}-{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}",  # Number-Letter
-        f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.randint(100000, 999999)}",  # Letter-Number
-        f"{get_next_sequence()}",  # Global sequence
-    ]
+        f"{random.randint(1000000, 9999999)}",        f"{random.randint(10000, 99999)}-{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}",        f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.randint(100000, 999999)}",        f"{get_next_sequence()}",    ]
+    
+    # Add country-specific prefixes occasionally
+    if random.random() < 0.15:
+        prefix_map = {
+            "chile": "CL",
+            "mexico": "MX",
+            "brazil": "BR",
+            "uruguay": "UY"
+        }
+        prefix = prefix_map.get(country, "CL")
+        # Prepend prefix to a random sequence type
+        idx = random.randrange(len(sequence_types))
+        sequence_types[idx] = f"{prefix}-{sequence_types[idx]}"
+    
+    return random.choice(sequence_types)
     
     # Add country-specific prefixes occasionally
     if random.random() < 0.15:  # 15% chance of country prefix
@@ -1057,7 +1236,7 @@ def generate_noisy_sentence_structure() -> str:
         str: Template string with placeholders for Chilean data
     """
     # Complex Chilean sentence structures with noise elements
-    copialo  = [
+    noisy_templates = [
         # Standard business communication with variations
         "El cliente {} {} con RUT {} registrado en el sistema. Dirección actual: {}, {}. Teléfono de contacto: {} - Email: {}. Monto pendiente: {}. N° de operación: {}.",
         
@@ -1501,118 +1680,6 @@ def generate_chilean_example_with_noise(include_noise: bool = True, noise_level:
     (Backwards compatibility wrapper)
     """
     return generate_example_with_noise("chile", include_noise, noise_level)
-    """
-    Generate a complete Chilean customer data example with controlled noise and guaranteed zero E1010 errors.
-    
-    Creates realistic Chilean customer information including:
-    - Full name (first + optional second name + surname)
-    - Chilean RUT number
-    - Complete Chilean address (street + city)
-    - Chilean phone number with +56 code
-    - Email address with Chilean domains
-    - Monetary amount in CLP
-    - Sequential reference number
-    - Controlled noise that preserves entity boundaries
-    
-    CRITICAL: Implements advanced entity conflict resolution to guarantee zero E1010 overlapping span errors.
-    
-    Args:
-        include_noise (bool): Whether to add realistic noise patterns
-        noise_level (float): Intensity of noise (0.0-1.0)
-    
-    Returns:
-        Tuple[str, Dict]: A tuple containing:
-            - str: Generated sentence with Chilean customer data and optional noise
-            - Dict: NER annotations with entity positions and labels
-                   Format: {"entities": [(start, end, label), ...]}
-    
-    Example:
-        >>> sentence, annotations = generate_chilean_example_with_noise()
-        >>> print(sentence)
-        "El cliente JUAN CARLOS GONZÁLEZ RODRÍGUEZ con RUT 15.234.567-8..."
-        >>> print(annotations)
-        {"entities": [(11, 38, "CUSTOMER_NAME"), (49, 61, "ID_NUMBER"), ...]}
-    """
-    # Generate Chilean name components with enhanced second surname support
-    first_name, full_name_part, complete_surname = generate_chilean_name_components(
-        include_second_name=True, second_name_probability=0.4,
-        include_second_surname=True, second_surname_probability=0.8
-    )
-    complete_full_name = f"{full_name_part} {complete_surname}"    # Complete name for entity recognition
-    
-    # Generate Chilean-specific data
-    rut_number = generate_chilean_rut()                          # Chilean RUT format
-    street = random.choice(chilean_streets)                      # Chilean street
-    street_number = random.randint(10, 999)                     # Street number
-    address = f"{street} {street_number}"                        # Complete Chilean address
-    city = random.choice(chilean_cities)                         # Chilean city
-    phone = generate_chilean_phone()                             # Chilean phone format
-    email = generate_chilean_email(first_name, complete_surname) # Chilean email
-    amount = generate_chilean_amount()                           # Chilean pesos (CLP)
-    sequence = generate_chilean_sequence_number()                # Chilean business sequence
-    
-    # Select template (with noise-enhanced structures if requested)
-    if include_noise:
-        template = generate_noisy_sentence_structure()
-    else:
-        # Simple template for clean generation
-        template = "El cliente {} {} con RUT {} registrado en {}, {}. Teléfono: {}. Email: {}. Monto: {}. Operación: {}."
-    
-    # Format sentence with generated data
-    try:
-        sentence = template.format(
-            full_name_part, complete_surname, rut_number, address, city, 
-            phone, email, amount, sequence
-        )
-    except:
-        # Fallback to simple template if formatting fails
-        sentence = f"El cliente {complete_full_name} con RUT {rut_number} registrado en {address}, {city}. Teléfono: {phone}. Email: {email}. Monto: {amount}. Operación: {sequence}."
-    
-    # Apply controlled noise if requested
-    if include_noise:
-        sentence = add_realistic_noise(sentence, noise_level)
-    
-    # CRITICAL: Advanced Entity Recognition with E1010 Conflict Resolution
-    # This algorithm guarantees zero overlapping span errors
-    entities = []
-    entity_mappings = [
-        (complete_full_name, "CUSTOMER_NAME"),    # Full customer name
-        (rut_number, "ID_NUMBER"),                # Chilean RUT
-        (address, "ADDRESS"),                     # Street address
-        (city, "ADDRESS"),                        # City (also tagged as ADDRESS)
-        (phone, "PHONE_NUMBER"),                  # Chilean phone number
-        (email, "EMAIL"),                         # Email address
-        (amount, "AMOUNT"),                       # Chilean pesos amount
-        (sequence, "SEQ_NUMBER")                  # Sequential reference number
-    ]
-    
-    # IMPROVED ENTITY DETECTION WITH CONFLICT RESOLUTION (E1010 FIX)
-    used_positions = set()
-    
-    # Sort entities by length (longest first) to prioritize longer matches
-    # This prevents shorter entities from blocking longer, more important ones
-    sorted_mappings = sorted(entity_mappings, key=lambda x: len(x[0]), reverse=True)
-    
-    for entity_text, label in sorted_mappings:
-        if not entity_text.strip():  # Skip empty entities
-            continue
-            
-        # Try exact match first
-        start_pos = sentence.find(entity_text)
-        if start_pos != -1:
-            end_pos = start_pos + len(entity_text)
-            
-            # CRITICAL: Check if this position overlaps with already used positions
-            position_range = set(range(start_pos, end_pos))
-            if not position_range.intersection(used_positions):
-                entities.append((start_pos, end_pos, label))
-                used_positions.update(position_range)
-                # Entity successfully added without conflicts
-    
-    # Sort entities by start position for consistent output
-    entities.sort(key=lambda x: x[0])
-    
-    return (sentence, {"entities": entities})
 
 def generate_multiple_chilean_examples_with_noise(count: int = 5, include_noise: bool = True, noise_level: float = 0.15) -> List[Tuple[str, Dict[str, List[Tuple[int, int, str]]]]]:
     """
@@ -1632,8 +1699,7 @@ def generate_multiple_chilean_examples_with_noise(count: int = 5, include_noise:
     """
     examples = []
     for _ in range(count):
-        example = generate_chilean_example_with_noise(include_noise, noise_level)
-        examples.append(example)
+        examples.append(generate_chilean_example_with_noise(include_noise, noise_level))
     return examples
 
 def generate_chilean_example_with_mode(mode: str = "full", include_noise: bool = True) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
@@ -1658,78 +1724,43 @@ def generate_chilean_example_with_mode(mode: str = "full", include_noise: bool =
     first_name, full_name_part, complete_surname = generate_chilean_name_components()
     complete_full_name = f"{full_name_part} {complete_surname}"
     
+    sentence = ""
+    entity_mappings = [(complete_full_name, "CUSTOMER_NAME")]
+
     if mode == "full":
-        # Full complexity - all entities
-        return generate_chilean_example_with_noise(include_noise)
+        return generate_chilean_example_with_noise(include_noise=include_noise)
         
     elif mode == "addr_only":
-        # Address-focused mode
-        street = random.choice(chilean_streets)
-        street_number = random.randint(10, 999)
-        address = f"{street} {street_number}"
+        address = f"{random.choice(chilean_streets)} {random.randint(10, 999)}"
         city = random.choice(chilean_cities)
-        
-        sentence = f"El cliente {complete_full_name} registrado en {address}, {city}."
-        if include_noise:
-            sentence = add_realistic_noise(sentence, 0.1)
-        
-        entities = []
-        entity_mappings = [
-            (complete_full_name, "CUSTOMER_NAME"),
-            (address, "ADDRESS"),
-            (city, "ADDRESS"),
-        ]
+        sentence = f"El domicilio de {complete_full_name} es {address}, {city}."
+        entity_mappings.extend([(address, "ADDRESS"), (city, "ADDRESS")])
         
     elif mode == "id_only":
-        # ID-focused mode
         rut_number = generate_chilean_rut()
-        
-        sentence = f"El documento de {complete_full_name} es {rut_number}."
-        if include_noise:
-            sentence = add_realistic_noise(sentence, 0.1)
-        
-        entities = []
-        entity_mappings = [
-            (complete_full_name, "CUSTOMER_NAME"),
-            (rut_number, "ID_NUMBER"),
-        ]
+        sentence = f"El RUT de {complete_full_name} es {rut_number}."
+        entity_mappings.append((rut_number, "ID_NUMBER"))
         
     elif mode == "contact_only":
-        # Contact-focused mode
         phone = generate_chilean_phone()
         email = generate_chilean_email(first_name, complete_surname)
-        
-        sentence = f"{complete_full_name} - Tel: {phone} Email: {email}."
-        if include_noise:
-            sentence = add_realistic_noise(sentence, 0.1)
-        
-        entities = []
-        entity_mappings = [
-            (complete_full_name, "CUSTOMER_NAME"),
-            (phone, "PHONE_NUMBER"),
-            (email, "EMAIL"),
-        ]
+        sentence = f"Contactar a {complete_full_name} al {phone} o via email a {email}."
+        entity_mappings.extend([(phone, "PHONE_NUMBER"), (email, "EMAIL")])
         
     elif mode == "financial_only":
-        # Financial-focused mode
         amount = generate_chilean_amount()
         sequence = generate_chilean_sequence_number()
+        sentence = f"El cliente {complete_full_name} tiene un monto de {amount} (ref: {sequence})."
+        entity_mappings.extend([(amount, "AMOUNT"), (sequence, "SEQ_NUMBER")])
         
-        sentence = f"Operación {sequence}: {complete_full_name} pagó {amount}."
-        if include_noise:
-            sentence = add_realistic_noise(sentence, 0.1)
-        
-        entities = []
-        entity_mappings = [
-            (complete_full_name, "CUSTOMER_NAME"),
-            (amount, "AMOUNT"),
-            (sequence, "SEQ_NUMBER"),
-        ]
     else:
-        # Default to full mode
-        return generate_chilean_example_with_noise(include_noise)
-    
-    # Apply the same E1010 conflict resolution for all modes
+        raise ValueError(f"Unknown mode: {mode}")
+
+    if include_noise:
+        sentence = add_realistic_noise(sentence)
+
+    # Simplified entity detection for these specific modes
+    entities = []
     used_positions = set()
     sorted_mappings = sorted(entity_mappings, key=lambda x: len(x[0]), reverse=True)
     
@@ -2649,222 +2680,7 @@ def export_chilean_data_to_excel_with_noise(n_examples: int = 100,
             
             all_data.append({
                 "ID": len(all_data) + 1,
-                "Mode": "full",
-                "Generated_Text": sentence,
-                "Entity_Count": len(entities),
-                "Entities": " | ".join(entity_details),
-                "Has_Noise": include_noise,
-                "Text_Length": len(sentence)
-            })
-            
-        except Exception as e:
-            continue
-    
-    # Create Excel workbook
-    print(f"📝 Creating Excel workbook with {len(all_data)} examples...")
-    
-    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-        # 1. Summary Sheet
-        summary_data = {
-            "Metric": [
-                "Total Examples Generated",
-                "Noise Generation Enabled",
-                "Noise Level",
-                "Average Text Length",
-                "Average Entities per Example",
-                "Unique Entity Types",
-                "Compound First Names",
-                "Double Surnames",
-                "Simple Names",
-                "Generation Date"
-            ],
-            "Value": [
-                len(all_data),
-                "Yes" if include_noise else "No",
-                f"{noise_level:.2f}" if include_noise else "N/A",
-                f"{sum(item['Text_Length'] for item in all_data) / len(all_data):.1f}",
-                f"{sum(item['Entity_Count'] for item in all_data) / len(all_data):.1f}",
-                len(entity_counts),
-                name_patterns["compound_first_names"],
-                name_patterns["double_surnames"],
-                name_patterns["simple_names"],
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ]
-        }
-        
-        summary_df = pd.DataFrame(summary_data)
-        summary_df.to_excel(writer, sheet_name='Summary', index=False)
-        
-        # 2. All Data Sheet
-        all_data_df = pd.DataFrame(all_data)
-        all_data_df.to_excel(writer, sheet_name='All_Data', index=False)
-        
-        # 3. By Mode Sheet
-        mode_analysis = []
-        for mode, count in mode_counts.items():
-            mode_data = [item for item in all_data if item["Mode"] == mode]
-            avg_entities = sum(item['Entity_Count'] for item in mode_data) / len(mode_data) if mode_data else 0
-            avg_length = sum(item['Text_Length'] for item in mode_data) / len(mode_data) if mode_data else 0
-            
-            mode_analysis.append({
-                "Mode": mode,
-                "Count": count,
-                "Percentage": f"{(count / len(all_data) * 100):.1f}%",
-                "Avg_Entities": f"{avg_entities:.1f}",
-                "Avg_Length": f"{avg_length:.1f}"
-            })
-        
-        mode_df = pd.DataFrame(mode_analysis)
-        mode_df.to_excel(writer, sheet_name='By_Mode', index=False)
-        
-        # 4. Chilean Name Analysis Sheet
-        name_analysis = [
-            {"Pattern_Type": "Compound First Names (e.g., Juan Carlos)", "Count": name_patterns["compound_first_names"]},
-            {"Pattern_Type": "Double Surnames (e.g., González Rodríguez)", "Count": name_patterns["double_surnames"]},
-            {"Pattern_Type": "Simple Names (e.g., Pedro López)", "Count": name_patterns["simple_names"]}
-        ]
-        
-        name_df = pd.DataFrame(name_analysis)
-        name_df.to_excel(writer, sheet_name='Chilean_Name_Analysis', index=False)
-        
-        # 5. Entity Statistics Sheet
-        entity_analysis = []
-        total_entities = sum(entity_counts.values())
-        
-        entity_descriptions = {
-            "CUSTOMER_NAME": "Full customer names with Chilean naming conventions",
-            "ID_NUMBER": "Chilean RUT numbers (XX.XXX.XXX-X format)",
-            "ADDRESS": "Chilean streets and cities",
-            "PHONE_NUMBER": "Chilean phone numbers (+56 format)",
-            "EMAIL": "Email addresses with Chilean domains",
-            "AMOUNT": "Monetary amounts in Chilean pesos (CLP)",
-            "SEQ_NUMBER": "Sequential reference numbers"
-        }
-        
-        for entity_type, count in sorted(entity_counts.items()):
-            percentage = (count / total_entities * 100) if total_entities > 0 else 0
-            entity_analysis.append({
-                "Entity_Type": entity_type,
-                "Count": count,
-                "Percentage": f"{percentage:.1f}%",
-                "Description": entity_descriptions.get(entity_type, "Entity type")
-            })
-        
-        entity_df = pd.DataFrame(entity_analysis)
-        entity_df.to_excel(writer, sheet_name='Entity_Statistics', index=False)
-        
-        # 6. Noise Analysis Sheet (if noise is enabled)
-        if include_noise and noise_patterns:
-            noise_analysis = []
-            for pattern_type, count in noise_patterns.items():
-                noise_analysis.append({
-                    "Noise_Pattern": pattern_type,
-                    "Occurrences": count,
-                    "Percentage": f"{(count / len(all_data) * 100):.1f}%"
-                })
-            
-            noise_df = pd.DataFrame(noise_analysis)
-            noise_df.to_excel(writer, sheet_name='Noise_Analysis', index=False)
-    
-    print(f"✅ Excel file created successfully: {output_file}")
-    print(f"📊 Generated {len(all_data)} examples with {len(entity_counts)} entity types")
-    print(f"🏷️  Entity distribution: {dict(sorted(entity_counts.items()))}")
-    print(f"📋 Chilean naming patterns: {name_patterns}")
-    
-    if include_noise:
-        print(f"🎭 Noise patterns detected: {noise_patterns}")
-    
-    print(f"\n📖 Excel sheets created:")
-    print(f"  • Summary - Overview statistics")
-    print(f"  • All_Data - Complete generated data")
-    print(f"  • By_Mode - Analysis by complexity mode")  
-    print(f"  • Chilean_Name_Analysis - Chilean naming pattern analysis")
-    print(f"  • Entity_Statistics - Entity type distribution")
-    if include_noise:
-        print(f"  • Noise_Analysis - Noise pattern analysis")
-
-def export_country_data_to_excel_with_noise(country: str = "chile",
-                                          n_examples: int = 100, 
-                                          output_file: str = "country_customer_data_review_noisy.xlsx",
-                                          include_noise: bool = True,
-                                          noise_level: float = 0.15) -> None:
-    """
-    Export generated customer data for a specific country to Excel for comprehensive review and validation.
-    
-    Creates a detailed Excel workbook with multiple sheets for thorough analysis:
-    - Summary statistics and overview
-    - Complete data with entity annotations
-    - Country-specific naming pattern analysis
-    - Entity type distribution
-    - Noise pattern analysis
-    
-    Args:
-        country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
-        n_examples (int): Number of examples to generate and export
-        output_file (str): Excel filename
-        include_noise (bool): Whether to include noise in generated data
-        noise_level (float): Intensity of noise (0.0-1.0)
-    """
-    print(f"📊 Generating {n_examples} {country} examples for Excel review...")
-    print(f"🎭 Noise generation: {'Enabled' if include_noise else 'Disabled'}")
-    print(f"📁 Output file: {output_file}")
-    
-    # Generate examples using the generic function
-    all_data = []
-    entity_counts = {}
-    noise_patterns = {}
-    name_patterns = {
-        "compound_first_names": 0,
-        "double_surnames": 0,
-        "simple_names": 0
-    }
-    
-    for i in range(n_examples):
-        try:
-            sentence, annotations = generate_example_with_noise(country, include_noise, noise_level)
-            
-            # Analyze naming patterns
-            entities = annotations["entities"]
-            for start, end, label in entities:
-                if label == "CUSTOMER_NAME":
-                    name = sentence[start:end]
-                    name_parts = name.split()
-                    
-                    if len(name_parts) == 4:  # First Second Paternal Maternal
-                        name_patterns["compound_first_names"] += 1
-                        name_patterns["double_surnames"] += 1
-                    elif len(name_parts) == 3:
-                        # Check if second name exists (basic heuristic)
-                        if country in COUNTRY_DATA and any(name_parts[1] in COUNTRY_DATA[country].get('second_names', [])):
-                            name_patterns["compound_first_names"] += 1
-                        else:
-                            name_patterns["double_surnames"] += 1
-                    else:
-                        name_patterns["simple_names"] += 1
-                    break
-            
-            # Count entities
-            for start, end, label in entities:
-                entity_counts[label] = entity_counts.get(label, 0) + 1
-            
-            # Analyze noise patterns
-            if include_noise:
-                if "  " in sentence:  # Double spaces
-                    noise_patterns["spacing"] = noise_patterns.get("spacing", 0) + 1
-                if "Av." in sentence or "Tel." in sentence:  # Abbreviations
-                    noise_patterns["abbreviations"] = noise_patterns.get("abbreviations", 0) + 1
-                if " ." in sentence or " :" in sentence:  # Punctuation spacing
-                    noise_patterns["punctuation"] = noise_patterns.get("punctuation", 0) + 1
-            
-            # Extract individual entities for detailed view
-            entity_details = []
-            for start, end, label in entities:
-                entity_text = sentence[start:end]
-                entity_details.append(f"{label}: '{entity_text}'")
-            
-            all_data.append({
-                "ID": i + 1,
-                "Country": country.upper(),
+                "Mode": "full",  # Default mode for remaining examples
                 "Generated_Text": sentence,
                 "Entity_Count": len(entities),
                 "Entities": " | ".join(entity_details),
@@ -2884,216 +2700,7 @@ def export_country_data_to_excel_with_noise(country: str = "chile",
             "Metric": [
                 "Total Examples Generated",
                 "Country",
-                "Noise Generation Enabled",
-                "Noise Level",
-                "Average Text Length",
-                "Average Entities per Example",
-                "Unique Entity Types",
-                "Compound First Names",
-                "Double Surnames",
-                "Simple Names",
-                "Generation Date"
-            ],
-            "Value": [
-                len(all_data),
-                country.upper(),
-                "Yes" if include_noise else "No",
-                f"{noise_level:.2f}" if include_noise else "N/A",
-                f"{sum(d['Text_Length'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
-                f"{sum(d['Entity_Count'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
-                len(entity_counts),
-                name_patterns["compound_first_names"],
-                name_patterns["double_surnames"],
-                name_patterns["simple_names"],
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ]
-        }
-        
-        summary_df = pd.DataFrame(summary_data)
-        summary_df.to_excel(writer, sheet_name='Summary', index=False)
-        
-        # 2. All Data Sheet
-        all_data_df = pd.DataFrame(all_data)
-        all_data_df.to_excel(writer, sheet_name='All_Data', index=False)
-        
-        # 3. Name Pattern Analysis Sheet
-        name_analysis = [
-            {"Pattern_Type": "Compound First Names", "Count": name_patterns["compound_first_names"], "Percentage": f"{name_patterns['compound_first_names']/len(all_data)*100:.1f}%" if all_data else "0%"},
-            {"Pattern_Type": "Double Surnames", "Count": name_patterns["double_surnames"], "Percentage": f"{name_patterns['double_surnames']/len(all_data)*100:.1f}%" if all_data else "0%"},
-            {"Pattern_Type": "Simple Names", "Count": name_patterns["simple_names"], "Percentage": f"{name_patterns['simple_names']/len(all_data)*100:.1f}%" if all_data else "0%"}
-        ]
-        
-        name_df = pd.DataFrame(name_analysis)
-        name_df.to_excel(writer, sheet_name='Name_Analysis', index=False)
-        
-        # 4. Entity Statistics Sheet
-        entity_descriptions = {
-            "CUSTOMER_NAME": "Full customer names with country conventions",
-            "ID_NUMBER": "Country-specific ID numbers (RUT, CURP, CPF, etc.)",
-            "ADDRESS": "Complete addresses with country-specific formats",
-            "PHONE": "Country-specific phone numbers",
-            "EMAIL": "Email addresses with country domains",
-            "AMOUNT": "Monetary amounts with local currencies",
-            "SEQ_NUMBER": "Sequential reference numbers"
-        }
-        
-        entity_analysis = []
-        for entity_type, count in entity_counts.items():
-            percentage = (count / len(all_data) * 100) if all_data else 0
-            entity_analysis.append({
-                "Entity_Type": entity_type,
-                "Count": count,
-                "Percentage": f"{percentage:.1f}%",
-                "Description": entity_descriptions.get(entity_type, "Entity type")
-            })
-        
-        entity_df = pd.DataFrame(entity_analysis)
-        entity_df.to_excel(writer, sheet_name='Entity_Statistics', index=False)
-        
-        # 5. Noise Analysis Sheet (if noise is enabled)
-        if include_noise and noise_patterns:
-            noise_analysis = []
-            for pattern_type, count in noise_patterns.items():
-                noise_analysis.append({
-                    "Noise_Pattern": pattern_type,
-                    "Occurrences": count,
-                    "Percentage": f"{(count / len(all_data) * 100):.1f}%" if all_data else "0%"
-                })
-            
-            noise_df = pd.DataFrame(noise_analysis)
-            noise_df.to_excel(writer, sheet_name='Noise_Analysis', index=False)
-    
-    print(f"✅ Excel file created successfully: {output_file}")
-    print(f"📊 Generated {len(all_data)} examples with {len(entity_counts)} entity types")
-    print(f"🏷️  Entity distribution: {dict(sorted(entity_counts.items()))}")
-    print(f"📋 {country.upper()} naming patterns: {name_patterns}")
-    
-    if include_noise:
-        print(f"🎭 Noise patterns detected: {noise_patterns}")
-    
-    print(f"\n📖 Excel sheets created:")
-    print(f"  • Summary - Overview statistics")
-    print(f"  • All_Data - Complete generated data")
-    print(f"  • Name_Analysis - Country naming pattern analysis")
-    print(f"  • Entity_Statistics - Entity type distribution")
-    if include_noise:
-        print(f"  • Noise_Analysis - Noise pattern analysis")
-
-def export_multi_country_data_to_excel_with_noise(n_examples: int = 100, 
-                                                output_file: str = "multi_country_customer_data_review_noisy.xlsx",
-                                                include_noise: bool = True,
-                                                noise_level: float = 0.15) -> None:
-    """
-    Export generated customer data for all supported countries to Excel for comprehensive review and validation.
-    
-    Creates a detailed Excel workbook with multiple sheets for thorough analysis:
-    - Summary statistics and overview
-    - Complete data with entity annotations for all countries
-    - Analysis by country
-    - Entity type distribution
-    - Noise pattern analysis
-    
-    Args:
-        n_examples (int): Total number of examples to generate across all countries
-        output_file (str): Excel filename
-        include_noise (bool): Whether to include noise in generated data
-        noise_level (float): Intensity of noise (0.0-1.0)
-    """
-    supported_countries = ["chile", "mexico", "brazil", "uruguay"]
-    examples_per_country = n_examples // len(supported_countries)
-    
-    print(f"📊 Generating {n_examples} multi-country examples for Excel review...")
-    print(f"🌎 Countries: {', '.join([c.upper() for c in supported_countries])}")
-    print(f"📈 Examples per country: {examples_per_country}")
-    print(f"🎭 Noise generation: {'Enabled' if include_noise else 'Disabled'}")
-    print(f"📁 Output file: {output_file}")
-    
-    # Generate examples for all countries
-    all_data = []
-    entity_counts = {}
-    noise_patterns = {}
-    country_stats = {}
-    name_patterns = {
-        "compound_first_names": 0,
-        "double_surnames": 0,
-        "simple_names": 0
-    }
-    
-    for country in supported_countries:
-        country_data = []
-        print(f"   🌍 Generating {examples_per_country} examples for {country.upper()}...")
-        
-        for i in range(examples_per_country):
-            try:
-                sentence, annotations = generate_example_with_noise(country, include_noise, noise_level)
-                
-                # Analyze naming patterns
-                entities = annotations["entities"]
-                for start, end, label in entities:
-                    if label == "CUSTOMER_NAME":
-                        name = sentence[start:end]
-                        name_parts = name.split()
-                        
-                        if len(name_parts) == 4:  # First Second Paternal Maternal
-                            name_patterns["compound_first_names"] += 1
-                            name_patterns["double_surnames"] += 1
-                        elif len(name_parts) == 3:
-                            # Check if second name exists (basic heuristic)
-                            if country in COUNTRY_DATA and any(name_parts[1] in COUNTRY_DATA[country].get('second_names', [])):
-                                name_patterns["compound_first_names"] += 1
-                            else:
-                                name_patterns["double_surnames"] += 1
-                        else:
-                            name_patterns["simple_names"] += 1
-                        break
-                
-                # Count entities
-                for start, end, label in entities:
-                    entity_counts[label] = entity_counts.get(label, 0) + 1
-                
-                # Analyze noise patterns
-                if include_noise:
-                    if "  " in sentence:  # Double spaces
-                        noise_patterns["spacing"] = noise_patterns.get("spacing", 0) + 1
-                    if "Av." in sentence or "Tel." in sentence:  # Abbreviations
-                        noise_patterns["abbreviations"] = noise_patterns.get("abbreviations", 0) + 1
-                    if " ." in sentence or " :" in sentence:  # Punctuation spacing
-                        noise_patterns["punctuation"] = noise_patterns.get("punctuation", 0) + 1
-                
-                # Extract individual entities for detailed view
-                entity_details = []
-                for start, end, label in entities:
-                    entity_text = sentence[start:end]
-                    entity_details.append(f"{label}: '{entity_text}'")
-                
-                row_data = {
-                    "ID": len(all_data) + 1,
-                    "Country": country.upper(),
-                    "Generated_Text": sentence,
-                    "Entity_Count": len(entities),
-                    "Entities": " | ".join(entity_details),
-                    "Has_Noise": include_noise,
-                    "Text_Length": len(sentence)
-                }
-                
-                all_data.append(row_data)
-                country_data.append(row_data)
-                
-            except Exception as e:
-                continue
-        
-        country_stats[country.upper()] = len(country_data)
-    
-    # Create Excel workbook
-    print(f"📝 Creating Excel workbook with {len(all_data)} examples...")
-    
-    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-        # 1. Summary Sheet
-        summary_data = {
-            "Metric": [
-                "Total Examples Generated",
-                "Countries Included",
-                "Examples per Country",
+                "Modes Included",
                 "Noise Generation Enabled",
                 "Noise Level",
                 "Average Text Length",
@@ -3106,8 +2713,8 @@ def export_multi_country_data_to_excel_with_noise(n_examples: int = 100,
             ],
             "Value": [
                 len(all_data),
-                ", ".join([c.upper() for c in supported_countries]),
-                examples_per_country,
+                "Chile",
+                ", ".join(modes),
                 "Yes" if include_noise else "No",
                 f"{noise_level:.2f}" if include_noise else "N/A",
                 f"{sum(d['Text_Length'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
@@ -3127,22 +2734,20 @@ def export_multi_country_data_to_excel_with_noise(n_examples: int = 100,
         all_data_df = pd.DataFrame(all_data)
         all_data_df.to_excel(writer, sheet_name='All_Data', index=False)
         
-        # 3. By Country Sheet
-        country_summary = []
-        for country in supported_countries:
-            country_examples = [d for d in all_data if d["Country"] == country.upper()]
-            has_second_names = sum(1 for d in country_examples if d["Entity_Count"] > 0)  # Simplified metric
-            has_second_surnames = sum(1 for d in country_examples if d["Entity_Count"] > 0)  # Simplified metric
+        # 3. By Mode Sheet
+        mode_summary = []
+        for mode in modes:
+            mode_examples = [d for d in all_data if d["Mode"] == mode]
             
-            country_summary.append({
-                "Country": country.upper(),
-                "Total_Examples": len(country_examples),
-                "Avg_Text_Length": f"{sum(d['Text_Length'] for d in country_examples)/len(country_examples):.1f}" if country_examples else "0",
-                "Avg_Entities_Per_Example": f"{sum(d['Entity_Count'] for d in country_examples)/len(country_examples):.1f}" if country_examples else "0"
+            mode_summary.append({
+                "Mode": mode,
+                "Total_Examples": len(mode_examples),
+                "Avg_Text_Length": f"{sum(d['Text_Length'] for d in mode_examples)/len(mode_examples):.1f}" if mode_examples else "0",
+                "Avg_Entities_Per_Example": f"{sum(d['Entity_Count'] for d in mode_examples)/len(mode_examples):.1f}" if mode_examples else "0"
             })
         
-        country_df = pd.DataFrame(country_summary)
-        country_df.to_excel(writer, sheet_name='By_Country', index=False)
+        mode_df = pd.DataFrame(mode_summary)
+        mode_df.to_excel(writer, sheet_name='By_Mode', index=False)
         
         # 4. Name Pattern Analysis Sheet
         name_analysis = [
@@ -3192,9 +2797,232 @@ def export_multi_country_data_to_excel_with_noise(n_examples: int = 100,
             noise_df.to_excel(writer, sheet_name='Noise_Analysis', index=False)
     
     print(f"✅ Excel file created successfully: {output_file}")
-    print(f"📊 Generated {len(all_data)} examples across {len(supported_countries)} countries")
+    print(f"📊 Generated {len(all_data)} Chilean examples")
     print(f"🏷️  Entity distribution: {dict(sorted(entity_counts.items()))}")
-    print(f"🌎 Country distribution: {country_stats}")
+    print(f"📊 Mode distribution: {mode_counts}")
+    print(f"📋 Chilean naming patterns: {name_patterns}")
+    
+    if include_noise:
+        print(f"🎭 Noise patterns detected: {noise_patterns}")
+    
+    print(f"\n📖 Excel sheets created:")
+    print(f"  • Summary - Overview statistics")
+    print(f"  • All_Data - Complete generated data")
+    print(f"  • By_Mode - Analysis by generation mode")
+    print(f"  • Name_Analysis - Chilean naming pattern analysis")
+    print(f"  • Entity_Statistics - Entity type distribution")
+    if include_noise:
+        print(f"  • Noise_Analysis - Noise pattern analysis")
+
+def export_multi_country_data_to_excel_with_noise(n_examples: int = 100, 
+                                                 output_file: str = "multi_country_customer_data_review_noisy.xlsx",
+                                                 include_noise: bool = True,
+                                                 noise_level: float = 0.15) -> None:
+    """
+    Export generated multi-country customer data to Excel for comprehensive review and validation.
+    
+    Creates a detailed Excel workbook with multiple sheets for thorough analysis across all countries:
+    - Summary statistics and overview
+    - Complete data with entity annotations
+    - Analysis by country
+    - Multi-country naming pattern analysis
+    - Entity type distribution
+    - Noise pattern analysis
+    
+    Args:
+        n_examples (int): Number of examples to generate and export per country
+        output_file (str): Excel filename
+        include_noise (bool): Whether to include noise in generated data
+        noise_level (float): Intensity of noise (0.0-1.0)
+    """
+    print(f"📊 Generating {n_examples} multi-country examples for Excel review...")
+    print(f"🎭 Noise generation: {'Enabled' if include_noise else 'Disabled'}")
+    print(f"📁 Output file: {output_file}")
+    
+    # Supported countries
+    countries = ["chile", "mexico", "brazil", "uruguay"]
+    examples_per_country = n_examples // len(countries)
+    all_data = []
+    
+    # Statistics tracking
+    country_counts = {country: 0 for country in countries}
+    entity_counts = {}
+    noise_patterns = {}
+    name_patterns = {
+        "compound_first_names": 0,
+        "double_surnames": 0,
+        "simple_names": 0
+    }
+    
+    # Generate examples for each country
+    for country in countries:
+        print(f"  📍 Generating {examples_per_country} examples for {country.upper()}...")
+        
+        for _ in range(examples_per_country):
+            try:
+                sentence, annotations = generate_example_with_noise(country, include_noise, noise_level)
+                
+                # Analyze naming patterns
+                entities = annotations["entities"]
+                for start, end, label in entities:
+                    if label == "CUSTOMER_NAME":
+                        name = sentence[start:end]
+                        name_parts = name.split()
+                        
+                        if len(name_parts) >= 4:  # Compound names
+                            name_patterns["compound_first_names"] += 1
+                            name_patterns["double_surnames"] += 1
+                        elif len(name_parts) == 3:
+                            name_patterns["double_surnames"] += 1
+                        else:
+                            name_patterns["simple_names"] += 1
+                        break
+                
+                # Count entities
+                for start, end, label in entities:
+                    entity_counts[label] = entity_counts.get(label, 0) + 1
+                
+                # Analyze noise patterns
+                if include_noise:
+                    if "  " in sentence:  # Double spaces
+                        noise_patterns["spacing"] = noise_patterns.get("spacing", 0) + 1
+                    if any(abbr in sentence for abbr in ["Av.", "Tel.", "Ref.", "Núm."]):
+                        noise_patterns["abbreviations"] = noise_patterns.get("abbreviations", 0) + 1
+                    if " ." in sentence or " :" in sentence:  # Punctuation spacing
+                        noise_patterns["punctuation"] = noise_patterns.get("punctuation", 0) + 1
+                
+                # Extract individual entities for detailed view
+                entity_details = []
+                for start, end, label in entities:
+                    entity_text = sentence[start:end]
+                    entity_details.append(f"{label}: '{entity_text}'")
+                
+                all_data.append({
+                    "ID": len(all_data) + 1,
+                    "Country": country.upper(),
+                    "Generated_Text": sentence,
+                    "Entity_Count": len(entities),
+                    "Entities": " | ".join(entity_details),
+                    "Has_Noise": include_noise,
+                    "Text_Length": len(sentence)
+                })
+                
+                country_counts[country] += 1
+                
+            except Exception as e:
+                print(f"⚠️  Error generating {country} example: {e}")
+                continue
+    
+    # Create Excel workbook
+    print(f"📝 Creating Excel workbook with {len(all_data)} examples...")
+    
+    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+        # 1. Summary Sheet
+        summary_data = {
+            "Metric": [
+                "Total Examples Generated",
+                "Countries Included",
+                "Examples per Country",
+                "Noise Generation Enabled",
+                "Noise Level",
+                "Average Text Length",
+                "Average Entities per Example",
+                "Unique Entity Types",
+                "Compound First Names",
+                "Double Surnames", 
+                "Simple Names",
+                "Generation Date"
+            ],
+            "Value": [
+                len(all_data),
+                ", ".join([c.upper() for c in countries]),
+                examples_per_country,
+                "Yes" if include_noise else "No",
+                f"{noise_level:.2f}" if include_noise else "N/A",
+                f"{sum(d['Text_Length'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
+                f"{sum(d['Entity_Count'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
+                len(entity_counts),
+                name_patterns["compound_first_names"],
+                name_patterns["double_surnames"],
+                name_patterns["simple_names"],
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ]
+        }
+        
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_excel(writer, sheet_name='Summary', index=False)
+        
+        # 2. All Data Sheet
+        all_data_df = pd.DataFrame(all_data)
+        all_data_df.to_excel(writer, sheet_name='All_Data', index=False)
+        
+        # 3. By Country Sheet
+        country_summary = []
+        for country in countries:
+            country_examples = [d for d in all_data if d["Country"] == country.upper()]
+            
+            country_summary.append({
+                "Country": country.upper(),
+                "Total_Examples": len(country_examples),
+                "Avg_Text_Length": f"{sum(d['Text_Length'] for d in country_examples)/len(country_examples):.1f}" if country_examples else "0",
+                "Avg_Entities_Per_Example": f"{sum(d['Entity_Count'] for d in country_examples)/len(country_examples):.1f}" if country_examples else "0",
+                "Percentage": f"{len(country_examples)/len(all_data)*100:.1f}%" if all_data else "0%"
+            })
+        
+        country_df = pd.DataFrame(country_summary)
+        country_df.to_excel(writer, sheet_name='By_Country', index=False)
+        
+        # 4. Name Pattern Analysis Sheet
+        name_analysis = [
+            {"Pattern_Type": "Compound First Names", "Count": name_patterns["compound_first_names"], "Percentage": f"{name_patterns['compound_first_names']/len(all_data)*100:.1f}%" if all_data else "0%"},
+            {"Pattern_Type": "Double Surnames", "Count": name_patterns["double_surnames"], "Percentage": f"{name_patterns['double_surnames']/len(all_data)*100:.1f}%" if all_data else "0%"},
+            {"Pattern_Type": "Simple Names", "Count": name_patterns["simple_names"], "Percentage": f"{name_patterns['simple_names']/len(all_data)*100:.1f}%" if all_data else "0%"}
+        ]
+        
+        name_df = pd.DataFrame(name_analysis)
+        name_df.to_excel(writer, sheet_name='Name_Analysis', index=False)
+        
+        # 5. Entity Statistics Sheet
+        entity_descriptions = {
+            "CUSTOMER_NAME": "Full customer names with country conventions",
+            "ID_NUMBER": "Country-specific ID numbers (RUT, CURP, CPF, etc.)",
+            "ADDRESS": "Complete addresses with country-specific formats",
+            "PHONE_NUMBER": "Country-specific phone numbers",
+            "EMAIL": "Email addresses with country domains",
+            "AMOUNT": "Monetary amounts with local currencies",
+            "SEQ_NUMBER": "Sequential reference numbers"
+        }
+        
+        entity_analysis = []
+        for entity_type, count in entity_counts.items():
+            percentage = (count / len(all_data) * 100) if all_data else 0
+            entity_analysis.append({
+                "Entity_Type": entity_type,
+                "Count": count,
+                "Percentage": f"{percentage:.1f}%",
+                "Description": entity_descriptions.get(entity_type, "Entity type")
+            })
+        
+        entity_df = pd.DataFrame(entity_analysis)
+        entity_df.to_excel(writer, sheet_name='Entity_Statistics', index=False)
+        
+        # 6. Noise Analysis Sheet (if noise is enabled)
+        if include_noise and noise_patterns:
+            noise_analysis = []
+            for pattern_type, count in noise_patterns.items():
+                noise_analysis.append({
+                    "Noise_Pattern": pattern_type,
+                    "Occurrences": count,
+                    "Percentage": f"{(count / len(all_data) * 100):.1f}%" if all_data else "0%"
+                })
+            
+            noise_df = pd.DataFrame(noise_analysis)
+            noise_df.to_excel(writer, sheet_name='Noise_Analysis', index=False)
+    
+    print(f"✅ Excel file created successfully: {output_file}")
+    print(f"📊 Generated {len(all_data)} examples across {len(countries)} countries")
+    print(f"🏷️  Entity distribution: {dict(sorted(entity_counts.items()))}")
+    print(f"🌎 Country distribution: {country_counts}")
     print(f"📋 Multi-country naming patterns: {name_patterns}")
     
     if include_noise:
@@ -3205,6 +3033,203 @@ def export_multi_country_data_to_excel_with_noise(n_examples: int = 100,
     print(f"  • All_Data - Complete generated data")
     print(f"  • By_Country - Analysis by country")
     print(f"  • Name_Analysis - Multi-country naming pattern analysis")
+    print(f"  • Entity_Statistics - Entity type distribution")
+    if include_noise:
+        print(f"  • Noise_Analysis - Noise pattern analysis")
+
+def export_country_data_to_excel_with_noise(country: str = "chile",
+                                          n_examples: int = 100, 
+                                          output_file: str = None,
+                                          include_noise: bool = True,
+                                          noise_level: float = 0.15) -> None:
+    """
+    Export generated country-specific customer data to Excel for comprehensive review and validation.
+    
+    Creates a detailed Excel workbook with multiple sheets for thorough analysis:
+    - Summary statistics and overview
+    - Complete data with entity annotations
+    - Entity type distribution
+    - Noise pattern analysis
+    
+    Args:
+        country (str): Country to generate data for
+        n_examples (int): Number of examples to generate and export
+        output_file (str): Excel filename (auto-generated if None)
+        include_noise (bool): Whether to include noise in generated data
+        noise_level (float): Intensity of noise (0.0-1.0)
+    """
+    if output_file is None:
+        output_file = f"{country}_customer_data_review_noisy.xlsx"
+    
+    print(f"📊 Generating {n_examples} {country.upper()} examples for Excel review...")
+    print(f"🎭 Noise generation: {'Enabled' if include_noise else 'Disabled'}")
+    print(f"📁 Output file: {output_file}")
+    
+    all_data = []
+    
+    # Statistics tracking
+    entity_counts = {}
+    noise_patterns = {}
+    name_patterns = {
+        "compound_first_names": 0,
+        "double_surnames": 0,
+        "simple_names": 0
+    }
+    
+    # Generate examples
+    for _ in range(n_examples):
+        try:
+            sentence, annotations = generate_example_with_noise(country, include_noise, noise_level)
+            
+            # Analyze naming patterns
+            entities = annotations["entities"]
+            for start, end, label in entities:
+                if label == "CUSTOMER_NAME":
+                    name = sentence[start:end]
+                    name_parts = name.split()
+                    
+                    if len(name_parts) >= 4:  # Compound names
+                        name_patterns["compound_first_names"] += 1
+                        name_patterns["double_surnames"] += 1
+                    elif len(name_parts) == 3:
+                        name_patterns["double_surnames"] += 1
+                    else:
+                        name_patterns["simple_names"] += 1
+                    break
+            
+            # Count entities
+            for start, end, label in entities:
+                entity_counts[label] = entity_counts.get(label, 0) + 1
+            
+            # Analyze noise patterns
+            if include_noise:
+                if "  " in sentence:  # Double spaces
+                    noise_patterns["spacing"] = noise_patterns.get("spacing", 0) + 1
+                if any(abbr in sentence for abbr in ["Av.", "Tel.", "Ref.", "Núm."]):
+                    noise_patterns["abbreviations"] = noise_patterns.get("abbreviations", 0) + 1
+                if " ." in sentence or " :" in sentence:  # Punctuation spacing
+                    noise_patterns["punctuation"] = noise_patterns.get("punctuation", 0) + 1
+            
+            # Extract individual entities for detailed view
+            entity_details = []
+            for start, end, label in entities:
+                entity_text = sentence[start:end]
+                entity_details.append(f"{label}: '{entity_text}'")
+            
+            all_data.append({
+                "ID": len(all_data) + 1,
+                "Country": country.upper(),
+                "Generated_Text": sentence,
+                "Entity_Count": len(entities),
+                "Entities": " | ".join(entity_details),
+                "Has_Noise": include_noise,
+                "Text_Length": len(sentence)
+            })
+            
+        except Exception as e:
+            print(f"⚠️  Error generating {country} example: {e}")
+            continue
+    
+    # Create Excel workbook
+    print(f"📝 Creating Excel workbook with {len(all_data)} examples...")
+    
+    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+        # 1. Summary Sheet
+        summary_data = {
+            "Metric": [
+                "Total Examples Generated",
+                "Country",
+                "Noise Generation Enabled",
+                "Noise Level",
+                "Average Text Length",
+                "Average Entities per Example",
+                "Unique Entity Types",
+                "Compound First Names",
+                "Double Surnames", 
+                "Simple Names",
+                "Generation Date"
+            ],
+            "Value": [
+                len(all_data),
+                country.upper(),
+                "Yes" if include_noise else "No",
+                f"{noise_level:.2f}" if include_noise else "N/A",
+                f"{sum(d['Text_Length'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
+                f"{sum(d['Entity_Count'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
+                len(entity_counts),
+                name_patterns["compound_first_names"],
+                name_patterns["double_surnames"],
+                name_patterns["simple_names"],
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ]
+        }
+        
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_excel(writer, sheet_name='Summary', index=False)
+        
+        # 2. All Data Sheet
+        all_data_df = pd.DataFrame(all_data)
+        all_data_df.to_excel(writer, sheet_name='All_Data', index=False)
+        
+        # 3. Name Pattern Analysis Sheet
+        name_analysis = [
+            {"Pattern_Type": "Compound First Names", "Count": name_patterns["compound_first_names"], "Percentage": f"{name_patterns['compound_first_names']/len(all_data)*100:.1f}%" if all_data else "0%"},
+            {"Pattern_Type": "Double Surnames", "Count": name_patterns["double_surnames"], "Percentage": f"{name_patterns['double_surnames']/len(all_data)*100:.1f}%" if all_data else "0%"},
+            {"Pattern_Type": "Simple Names", "Count": name_patterns["simple_names"], "Percentage": f"{name_patterns['simple_names']/len(all_data)*100:.1f}%" if all_data else "0%"}
+        ]
+        
+        name_df = pd.DataFrame(name_analysis)
+        name_df.to_excel(writer, sheet_name='Name_Analysis', index=False)
+        
+        # 4. Entity Statistics Sheet
+        entity_descriptions = {
+            "CUSTOMER_NAME": "Full customer names with country conventions",
+            "ID_NUMBER": "Country-specific ID numbers (RUT, CURP, CPF, etc.)",
+            "ADDRESS": "Complete addresses with country-specific formats",
+            "PHONE_NUMBER": "Country-specific phone numbers",
+            "EMAIL": "Email addresses with country domains",
+            "AMOUNT": "Monetary amounts with local currencies",
+            "SEQ_NUMBER": "Sequential reference numbers"
+        }
+        
+        entity_analysis = []
+        for entity_type, count in entity_counts.items():
+            percentage = (count / len(all_data) * 100) if all_data else 0
+            entity_analysis.append({
+                "Entity_Type": entity_type,
+                "Count": count,
+                "Percentage": f"{percentage:.1f}%",
+                "Description": entity_descriptions.get(entity_type, "Entity type")
+            })
+        
+        entity_df = pd.DataFrame(entity_analysis)
+        entity_df.to_excel(writer, sheet_name='Entity_Statistics', index=False)
+        
+        # 5. Noise Analysis Sheet (if noise is enabled)
+        if include_noise and noise_patterns:
+            noise_analysis = []
+            for pattern_type, count in noise_patterns.items():
+                noise_analysis.append({
+                    "Noise_Pattern": pattern_type,
+                    "Occurrences": count,
+                    "Percentage": f"{(count / len(all_data) * 100):.1f}%" if all_data else "0%"
+                })
+            
+            noise_df = pd.DataFrame(noise_analysis)
+            noise_df.to_excel(writer, sheet_name='Noise_Analysis', index=False)
+    
+    print(f"✅ Excel file created successfully: {output_file}")
+    print(f"📊 Generated {len(all_data)} examples for {country.upper()}")
+    print(f"🏷️  Entity distribution: {dict(sorted(entity_counts.items()))}")
+    print(f"📋 {country.upper()} naming patterns: {name_patterns}")
+    
+    if include_noise:
+        print(f"🎭 Noise patterns detected: {noise_patterns}")
+    
+    print(f"\n📖 Excel sheets created:")
+    print(f"  • Summary - Overview statistics")
+    print(f"  • All_Data - Complete generated data")
+    print(f"  • Name_Analysis - {country.upper()} naming pattern analysis")
     print(f"  • Entity_Statistics - Entity type distribution")
     if include_noise:
         print(f"  • Noise_Analysis - Noise pattern analysis")
@@ -3228,14 +3253,14 @@ def demonstrate_multi_country_functionality_with_noise():
                        help="Mode: 'demo' shows examples, 'create-dataset' generates training data, 'excel-export' creates review file")
     parser.add_argument("--country", choices=["chile", "mexico", "brazil", "uruguay", "all"], default="chile",
                        help="Country for generation: 'chile', 'mexico', 'brazil', 'uruguay', or 'all' for mixed dataset")
-    parser.add_argument("--train-size", type=int, default=80000, help="Training set size")
+    parser.add_argument("--train-size", type=int, default=100000, help="Training set size")
     parser.add_argument("--dev-size", type=int, default=20000, help="Development set size")
     parser.add_argument("--output-dir", type=str, default="output", help="Output directory")
     parser.add_argument("--excel-examples", type=int, default=100, help="Number of examples for Excel export")
     parser.add_argument("--excel-file", type=str, default="multi_country_customer_data_review_noisy.xlsx", help="Excel output filename")
     parser.add_argument("--noise", action="store_true", default=True, help="Enable noise generation")
     parser.add_argument("--no-noise", action="store_true", help="Disable noise generation")
-    parser.add_argument("--noise-level", type=float, default=0.85, help="Noise intensity (0.0-1.0) - Enhanced for OCR simulation")
+    parser.add_argument("--noise-level", type=float, default=0.4, help="Noise intensity (0.0-1.0) - Enhanced for OCR simulation")
     
     args = parser.parse_args()
     
@@ -3344,7 +3369,6 @@ def demonstrate_multi_country_functionality_with_noise():
                     overlap_errors += 1
         
         test_examples.append((sentence, entities))
-    
     print(f"✅ Tested {len(test_examples)} examples across countries")
     print(f"❌ Overlap errors detected: {overlap_errors}")
     

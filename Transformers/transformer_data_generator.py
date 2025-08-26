@@ -466,8 +466,8 @@ def main():
     parser.add_argument("--countries", nargs="+", default=["chile", "mexico", "brazil", "uruguay"],
                        choices=["chile", "mexico", "brazil", "uruguay"], 
                        help="Countries to include")
-    parser.add_argument("--train-size", type=int, default=50000, help="Training set size")
-    parser.add_argument("--dev-size", type=int, default=10000, help="Development set size")
+    parser.add_argument("--train-size", type=int, default=150000, help="Training set size")
+    parser.add_argument("--dev-size", type=int, default=30000, help="Development set size")
     parser.add_argument("--noise-level", type=float, default=0.3, help="Noise level (0.0-1.0)")
     parser.add_argument("--output-dir", default="output", help="Output directory")
     

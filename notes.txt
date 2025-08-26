@@ -1,6 +1,6 @@
 python3 data_generation_noisy.py --mode create-dataset --country all --train-size 250000 --dev-size 50000 --noise --noise-level 0.4
 python3 data_generation_noisy.py --mode create-dataset --country all --train-size 120000 --dev-size 24000 --noise --noise-level 0.8
-
+python3 data_generation_noisy.py --mode create-dataset --country all --train-size 1000 --dev-size 200 --noise --noise-level 0.5
 
 # Reduce noise for even better entity preservation
 python3 data_generation_noisy.py --mode create-dataset --country all \

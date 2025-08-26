@@ -352,11 +352,13 @@ This spaCy solution represents months of optimization work:
 6. **SEQ_NUMBER Fix**: Comprehensive sequence detection
 7. **Final Optimization**: Achieved 96.8% success rate
 
-The optimization journey is documented in the parent directory files:
-- `FAILED_SPANS_ANALYSIS.md`
-- `FAILED_SPANS_FIX_PLAN.md` 
-- `FAILED_SPANS_PROGRESS.md`
-- `FAILED_SPANS_MODEL_IMPACT.md`
+The optimization journey is documented in the [`../docs/`](../docs/) folder:
+- [`../docs/FAILED_SPANS_ANALYSIS.md`](../docs/FAILED_SPANS_ANALYSIS.md)
+- [`../docs/FAILED_SPANS_FIX_PLAN.md`](../docs/FAILED_SPANS_FIX_PLAN.md) 
+- [`../docs/FAILED_SPANS_PROGRESS.md`](../docs/FAILED_SPANS_PROGRESS.md)
+- [`../docs/FAILED_SPANS_MODEL_IMPACT.md`](../docs/FAILED_SPANS_MODEL_IMPACT.md)
+
+📚 **Complete documentation index**: [`../docs/README.md`](../docs/README.md)
 
 ## 👨‍💻 Author
 

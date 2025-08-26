@@ -23,7 +23,11 @@ DATA_GENERATION/
 │   ├── inference_example.py         # Model inference examples
 │   ├── models/                       # Trained transformer models
 │   └── output/                       # Generated .json datasets
-├── 📄 *.md                         # Documentation and analysis files
+├── � docs/                         # Complete documentation collection
+│   ├── README.md                     # Documentation index
+│   ├── FAILED_SPANS_*.md            # Optimization journey (89% improvement)
+│   ├── OCR_TESTING_GUIDE.md         # Testing tools and validation
+│   └── *.md                         # Analysis and technical documentation
 └── 📄 notes.txt                    # Development notes
 ```
 
@@ -130,16 +134,24 @@ python train_transformer_ner.py --epochs 5
 - **Trained models**: BERT-based multilingual NER models
 - **Evaluation metrics**: Comprehensive F1 scores and entity analysis
 
-## 📋 Documentation Files
+## 📋 Documentation Structure
 
-| File | Description |
-|------|-------------|
+| Location | Description |
+|----------|-------------|
 | `README.md` | This overview (you are here) |
-| `Spacy/README.md` | Complete spaCy solution guide |
-| `Transformers/README.md` | Complete Transformer solution guide |
-| `OCR_TESTING_GUIDE.md` | OCR testing tools documentation |
-| `DATA_GENERATION_DOCUMENTATION.md` | Original system documentation |
-| `FAILED_SPANS_*.md` | Optimization journey documentation |
+| [`docs/`](docs/) | **Complete documentation collection** |
+| [`docs/README.md`](docs/README.md) | Documentation index and reading guide |
+| [`Spacy/README.md`](Spacy/README.md) | Complete spaCy solution guide |
+| [`Transformers/README.md`](Transformers/README.md) | Complete Transformer solution guide |
+
+### 📚 Key Documentation in `/docs/`
+
+| File | Purpose |
+|------|---------|
+| [`docs/OCR_TESTING_GUIDE.md`](docs/OCR_TESTING_GUIDE.md) | OCR testing tools and validation |
+| [`docs/DATA_GENERATION_DOCUMENTATION.md`](docs/DATA_GENERATION_DOCUMENTATION.md) | Original system documentation |
+| [`docs/FAILED_SPANS_*.md`](docs/) | **Optimization journey** (89% improvement) |
+| [`docs/PROJECT_ORGANIZATION.md`](docs/PROJECT_ORGANIZATION.md) | Project structure documentation |
 | `notes.txt` | Development notes and requirements |
 
 ## 🎯 Which Approach to Choose?
