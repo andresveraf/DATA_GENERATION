@@ -38,6 +38,15 @@ Enhanced Noise Features:
 - Document formatting variations per country
 - Text structure complexity
 - Controlled noise that preserves training data quality
+- OCR-specific noise patterns for scanned document simulation
+
+OCR Noise Capabilities:
+- Character substitution errors (0→O, 1→l, rn→m, etc.)
+- Random character insertion artifacts
+- Character deletion errors
+- Word boundary corruption (splitting/joining)
+- Spacing artifacts around punctuation
+- Enhanced OCR mode with multiple simultaneous noise types
 
 Critical E1010 Fix:
 - Longest-match-first entity prioritization
