@@ -1,35 +1,41 @@
 """
-Chilean PII Training Data Generator with Advanced Noise Generation
-=================================================================
+Multi-Country Latin American PII Training Data Generator with Advanced Noise Generation
+=======================================================================================
 
-This module generates realistic Chilean customer data with controlled noise patterns
-specifically designed for Named Entity Recognition (NER) training. It creates datasets
-with labeled entities for customer service and financial NLP applications, with enhanced
-noise generation capabilities that preserve entity boundaries.
+This module generates realistic customer data for multiple Latin American countries with 
+controlled noise patterns specifically designed for Named Entity Recognition (NER) training. 
+It creates datasets with labeled entities for customer service and financial NLP applications, 
+with enhanced noise generation capabilities that preserve entity boundaries.
 
 Key Features:
-- Comprehensive Chilean PII data generation (1000+ lines restored)
+- Multi-country PII data generation for Chile, Mexico, Brazil, and Uruguay
 - Advanced E1010 overlapping span error prevention (ZERO errors guaranteed)
 - Controlled noise injection that preserves entity boundaries
 - Named Entity Recognition (NER) annotations with conflict resolution
 - spaCy-compatible training data creation (100K+ examples)
 - Excel export functionality for data review and validation
-- Command-line interface with multiple modes
+- Command-line interface with multiple modes and country selection
 - Statistics tracking and reporting
 
+Supported Countries:
+- Chile (CL): RUT format, +56 phones, CLP currency, Chilean Spanish
+- Mexico (MX): CURP/RFC formats, +52 phones, MXN currency, Mexican Spanish
+- Brazil (BR): CPF/RG formats, +55 phones, BRL currency, Portuguese
+- Uruguay (UY): Cédula format, +598 phones, UYU currency, Uruguayan Spanish
+
 Supported Entity Types:
-- CUSTOMER_NAME: Full names (first + optional second + surnames)
-- ID_NUMBER: Chilean RUT format (XX.XXX.XXX-X)
-- ADDRESS: Street addresses and cities
-- PHONE_NUMBER: Chilean phone formats (+56)
-- EMAIL: Email addresses
-- AMOUNT: Monetary amounts with CLP currency
+- CUSTOMER_NAME: Full names with country-specific conventions
+- ID_NUMBER: Country-specific ID formats (RUT/CURP/CPF/Cédula)
+- ADDRESS: Country-specific address formats
+- PHONE_NUMBER: Country-specific phone formats
+- EMAIL: Email addresses with country-appropriate domains
+- AMOUNT: Monetary amounts with country currencies
 - SEQ_NUMBER: Sequential reference numbers
 
 Enhanced Noise Features:
-- Realistic typos and misspellings
-- Abbreviations and contractions
-- Document formatting variations
+- Realistic typos and misspellings per country
+- Country-specific abbreviations and contractions
+- Document formatting variations per country
 - Text structure complexity
 - Controlled noise that preserves training data quality
 
@@ -42,7 +48,7 @@ Critical E1010 Fix:
 
 Author: Andrés Vera Figueroa
 Date: August 2025
-Purpose: Large-scale PII detection model training for Chilean documents
+Purpose: Large-scale PII detection model training for Latin American documents
 Critical requirement: Zero E1010 errors guaranteed
 """
 
@@ -72,38 +78,95 @@ def get_next_sequence() -> int:
     return _sequence_counter
 
 # -----------------
-# Chilean Customer Names Database
+# Multi-Country Customer Names Database
 # -----------------
-# Comprehensive collection of Chilean first names with proper Spanish accents
-chilean_first_names = [
-    # Masculine names (common in Chile)
-    "AGUSTÍN", "ALEJANDRO", "ALONSO", "ÁLVARO", "ANDRÉS", "ÁXEL", "BAUTISTA", "BENJAMÍN", "BRUNO", "CALEB",
-    "CAMILO", "CARLOS", "CRISTÓBAL", "CRISTIAN", "DAMIÁN", "DANIEL", "DAVID", "DIEGO", "EDUARDO", "ELÍAS",
-    "EMILIANO", "EMMANUEL", "ENRIQUE", "ESTEBAN", "ETHAN", "FEDERICO", "FERNANDO", "FRANCISCO", "GABRIEL",
-    "GAEL", "GASPAR", "GERMÁN", "GUSTAVO", "HERNÁN", "IAN", "IGNACIO", "ISIDORO", "IVÁN", "JAIR", "JAIRO",
-    "JASON", "JEREMY", "JHON", "JOAQUÍN", "JORGE", "JUAN", "JULIÁN", "KEVIN", "KIAN", "LEÓN", "LEONARDO",
-    "LIAM", "LORENZO", "LUCCA", "LUIS", "MARCELO", "MARCO", "MARTÍN", "MATÍAS", "MATEO", "MAURICIO",
-    "MAXIMILIANO", "MIGUEL", "NICOLÁS", "OLIVER", "OMAR", "ORLANDO", "PATRICIO", "PAULO", "PEDRO", "RAFAEL",
-    "RAMIRO", "RICARDO", "ROBERTO", "RODRIGO", "RUBÉN", "SAMUEL", "SANTIAGO", "SEBASTIÁN", "SIMÓN", "THIAGO",
-    "TOBÍAS", "TOMÁS", "VALENTINO", "VÍCTOR", "VICENTE", "WALTER", "XANDER", "ZAHIR",
-    
-    # Feminine names (common in Chile)
-    "AGUSTINA", "AINHOA", "AITANA", "ALBA", "ALEJANDRA", "ALEXA", "ALEXANDRA", "ALMENDRA", "AMANDA", "AMELIA",
-    "ANAÍS", "ANTONELLA", "ANTONIA", "ARANTXA", "ARIADNA", "AROHA", "AZUL", "BELÉN", "BLANCA", "BRISA",
-    "CAMILA", "CARLA", "CAROLINA", "CATALINA", "CELIA", "CLARA", "CLAUDIA", "CONSTANZA", "DANIELA", "DÉBORA",
-    "DIANA", "DOMINIQUE", "ELISA", "ELIZABETH", "EMILIA", "EMMA", "ESMERALDA", "ESTEFANÍA", "FERNANDA",
-    "FLORENCIA", "FRANCISCA", "GABRIELA", "GIOVANNA", "ISABELLA", "IVANNA", "JAVIERA", "JIMENA", "JOSEFINA",
-    "JUANITA", "JULIETA", "KARINA", "KARLA", "KATIA", "KIARA", "LARA", "LAURA", "LAYLA", "LILA", "LUCIANA",
-    "LUISA", "LUNA", "MACARENA", "MAGDALENA", "MANUELA", "MARÍA", "MARTINA", "MATILDA", "MÍA", "MILA",
-    "MIREYA", "NATALIA", "NEREA", "NICOLE", "NOELIA", "OLIVIA", "PALOMA", "PAOLA", "PAULINA", "PAZ",
-    "PENÉLOPE", "RENATA", "ROCÍO", "ROSA", "ROMINA", "ROSARIO", "SALOMÉ", "SAMANTHA", "SARA", "SOFÍA", "SOL",
-    "TAMARA", "VALENTINA", "VALERIA", "VANIA", "VERÓNICA", "VICTORIA", "VIOLETA", "XIMENA", "YASNA",
-    "YOLANDA", "ZOE"
-]
 
-# Collection of common Chilean second names (middle names)
-# Very common to have compound first names like "Juan Carlos", "María José", "Ana Sofía"
-chilean_second_names = [
+# Country-specific data organization
+COUNTRY_DATA = {
+    'chile': {
+        'first_names': [
+            # Masculine names (common in Chile)
+            "AGUSTÍN", "ALEJANDRO", "ALONSO", "ÁLVARO", "ANDRÉS", "ÁXEL", "BAUTISTA", "BENJAMÍN", "BRUNO", "CALEB",
+            "CAMILO", "CARLOS", "CRISTÓBAL", "CRISTIAN", "DAMIÁN", "DANIEL", "DAVID", "DIEGO", "EDUARDO", "ELÍAS",
+            "EMILIANO", "EMMANUEL", "ENRIQUE", "ESTEBAN", "ETHAN", "FEDERICO", "FERNANDO", "FRANCISCO", "GABRIEL",
+            "GAEL", "GASPAR", "GERMÁN", "GUSTAVO", "HERNÁN", "IAN", "IGNACIO", "ISIDORO", "IVÁN", "JAIR", "JAIRO",
+            "JASON", "JEREMY", "JHON", "JOAQUÍN", "JORGE", "JUAN", "JULIÁN", "KEVIN", "KIAN", "LEÓN", "LEONARDO",
+            "LIAM", "LORENZO", "LUCCA", "LUIS", "MARCELO", "MARCO", "MARTÍN", "MATÍAS", "MATEO", "MAURICIO",
+            "MAXIMILIANO", "MIGUEL", "NICOLÁS", "OLIVER", "OMAR", "ORLANDO", "PATRICIO", "PAULO", "PEDRO", "RAFAEL",
+            "RAMIRO", "RICARDO", "ROBERTO", "RODRIGO", "RUBÉN", "SAMUEL", "SANTIAGO", "SEBASTIÁN", "SIMÓN", "THIAGO",
+            "TOBÍAS", "TOMÁS", "VALENTINO", "VÍCTOR", "VICENTE", "WALTER", "XANDER", "ZAHIR",
+            
+            # Feminine names (common in Chile)
+            "AGUSTINA", "AINHOA", "AITANA", "ALBA", "ALEJANDRA", "ALEXA", "ALEXANDRA", "ALMENDRA", "AMANDA", "AMELIA",
+            "ANAÍS", "ANTONELLA", "ANTONIA", "ARANTXA", "ARIADNA", "AROHA", "AZUL", "BELÉN", "BLANCA", "BRISA",
+            "CAMILA", "CARLA", "CAROLINA", "CATALINA", "CELIA", "CLARA", "CLAUDIA", "CONSTANZA", "DANIELA", "DÉBORA",
+            "DIANA", "DOMINIQUE", "ELISA", "ELIZABETH", "EMILIA", "EMMA", "ESMERALDA", "ESTEFANÍA", "FERNANDA",
+            "FLORENCIA", "FRANCISCA", "GABRIELA", "GIOVANNA", "ISABELLA", "IVANNA", "JAVIERA", "JIMENA", "JOSEFINA",
+            "JUANITA", "JULIETA", "KARINA", "KARLA", "KATIA", "KIARA", "LARA", "LAURA", "LAYLA", "LILA", "LUCIANA",
+            "LUISA", "LUNA", "MACARENA", "MAGDALENA", "MANUELA", "MARÍA", "MARTINA", "MATILDA", "MÍA", "MILA",
+            "MIREYA", "NATALIA", "NEREA", "NICOLE", "NOELIA", "OLIVIA", "PALOMA", "PAOLA", "PAULINA", "PAZ",
+            "PENÉLOPE", "RENATA", "ROCÍO", "ROSA", "ROMINA", "ROSARIO", "SALOMÉ", "SAMANTHA", "SARA", "SOFÍA", "SOL",
+            "TAMARA", "VALENTINA", "VALERIA", "VANIA", "VERÓNICA", "VICTORIA", "VIOLETA", "XIMENA", "YASNA",
+            "YOLANDA", "ZOE"
+        ],
+    },
+    'mexico': {
+        'first_names': [
+            # Traditional Mexican masculine names
+            "ALEJANDRO", "ANDRÉS", "ANTONIO", "CARLOS", "DANIEL", "DAVID", "DIEGO", "EDUARDO", "EMILIO", "FERNANDO",
+            "FRANCISCO", "GABRIEL", "GUSTAVO", "HUGO", "IGNACIO", "JAVIER", "JESÚS", "JORGE", "JOSÉ", "JUAN",
+            "JULIO", "LEONARDO", "LUIS", "MANUEL", "MARCO", "MARIO", "MIGUEL", "PABLO", "PEDRO", "RAFAEL",
+            "RAMÓN", "RAÚL", "RICARDO", "ROBERTO", "RODOLFO", "SALVADOR", "SANTIAGO", "SERGIO", "VÍCTOR",
+            
+            # Traditional Mexican feminine names
+            "ADRIANA", "ALEJANDRA", "ANA", "ANDREA", "ÁNGELA", "BEATRIZ", "CARMEN", "CAROLINA", "CLAUDIA", "CRISTINA",
+            "DANIELA", "ELENA", "ELIZABETH", "ESPERANZA", "FERNANDA", "GABRIELA", "GUADALUPE", "ISABELLA", "JESSICA",
+            "JULIA", "LAURA", "LETICIA", "LUCÍA", "MARÍA", "MARTHA", "MÓNICA", "NATALIA", "PATRICIA", "ROSA",
+            "SANDRA", "SOFÍA", "SUSANA", "TERESA", "VALERIA", "VERÓNICA", "VICTORIA", "YOLANDA",
+            
+            # Indigenous Mexican names
+            "XÓCHITL", "ITZEL", "YARETZI", "CITLALI", "NAYELI", "ARELY", "ITZAYANA", "XITLALI", "YANELI", "ANAHÍ",
+            "XIMENA", "YAMILET", "CITLALY", "NAOMI", "QUETZALI", "TLÁLOC", "CUAUHTÉMOC", "NEZAHUALCÓYOTL",
+            "MOCTEZUMA", "TENOCHTITLAN", "TONATIUH", "MALINTZIN", "IZEL", "ITZÁMIN", "XITLA"
+        ],
+    },
+    'brazil': {
+        'first_names': [
+            # Brazilian Portuguese masculine names
+            "ALEXANDRE", "ANDRÉ", "ANTÔNIO", "BRUNO", "CARLOS", "DANIEL", "EDUARDO", "FÁBIO", "FERNANDO", "GABRIEL",
+            "GUSTAVO", "HENRIQUE", "JOÃO", "JOSÉ", "LEONARDO", "LUCAS", "LUÍS", "MARCELO", "MARCOS", "MATEUS",
+            "PEDRO", "RAFAEL", "RICARDO", "RODRIGO", "THIAGO", "VINÍCIUS", "CAIO", "FELIPE", "GUILHERME", "IGOR",
+            "LEANDRO", "MAURÍCIO", "PAULO", "RENATO", "SÉRGIO", "WELLINGTON", "WASHINGTON", "WESLEY",
+            
+            # Brazilian Portuguese feminine names  
+            "ADRIANA", "ANA", "ANDREA", "BEATRIZ", "BIANCA", "CAMILA", "CAROLINA", "CRISTIANE", "DANIELA", "FERNANDA",
+            "GABRIELA", "JULIANA", "LARISSA", "LETÍCIA", "LUCIANA", "MARCIA", "MARIA", "MÔNICA", "PATRÍCIA", "PAULA",
+            "PRISCILA", "RAFAELA", "SANDRA", "TATIANA", "VANESSA", "VIVIANE", "DÉBORA", "FLÁVIA", "JÉSSICA", "KARINA",
+            "LUANA", "RENATA", "SIMONE", "SOLANGE", "TÂNIA", "CLÁUDIA", "ELIANE", "FABIANA", "GISELE", "HELENA"
+        ],
+    },
+    'uruguay': {
+        'first_names': [
+            # Uruguayan masculine names (similar to Argentine/Chilean with some variations)
+            "AGUSTÍN", "ALEJANDRO", "ANDRÉS", "ANTONIO", "CARLOS", "DANIEL", "DIEGO", "EDUARDO", "FERNANDO", "FRANCISCO",
+            "GABRIEL", "GONZALO", "GUSTAVO", "IGNACIO", "JAVIER", "JOAQUÍN", "JORGE", "JOSÉ", "JUAN", "LEONARDO",
+            "LUIS", "MANUEL", "MARCELO", "MARIO", "MARTÍN", "MATÍAS", "MIGUEL", "NICOLÁS", "PABLO", "PEDRO",
+            "RAFAEL", "RAMIRO", "RICARDO", "ROBERTO", "RODRIGO", "SANTIAGO", "SEBASTIÁN", "VÍCTOR", "WALTER",
+            
+            # Uruguayan feminine names
+            "ADRIANA", "ALEJANDRA", "ANA", "ANDREA", "BEATRIZ", "CAROLINA", "CLAUDIA", "CRISTINA", "DANIELA", "ELENA",
+            "FERNANDA", "GABRIELA", "GRACIELA", "ISABEL", "LAURA", "LETICIA", "LUCÍA", "MARÍA", "MARTHA", "MÓNICA",
+            "NATALIA", "PATRICIA", "PAULA", "ROSA", "SANDRA", "SILVIA", "SOFÍA", "SUSANA", "VALERIA", "VERÓNICA",
+            "VIRGINIA", "VIVIANA", "ALEJANDRA", "CECILIA", "FLORENCIA", "MAGDALENA", "MACARENA", "VALENTINA"
+        ],
+    }
+}
+
+# Backwards compatibility - keep Chilean data accessible
+chilean_first_names = COUNTRY_DATA['chile']['first_names']
+
+# Add second names to country data
+COUNTRY_DATA['chile']['second_names'] = [
     # Masculine second names
     "CARLOS", "JOSÉ", "LUIS", "ANTONIO", "MANUEL", "FRANCISCO", "MIGUEL", "RAFAEL", "FERNANDO", "RICARDO",
     "ALBERTO", "EDUARDO", "ALEJANDRO", "ANDRÉS", "ROBERTO", "PEDRO", "DANIEL", "GABRIEL", "DIEGO", "SEBASTIÁN",
@@ -115,13 +178,45 @@ chilean_second_names = [
     "CONCEPCIÓN", "INMACULADA", "ÁNGELES", "REMEDIOS", "VICTORIA", "GLORIA", "PAZ", "FE", "CARIDAD", "NIEVES"
 ]
 
+COUNTRY_DATA['mexico']['second_names'] = [
+    # Mexican masculine second names
+    "MARÍA", "JOSÉ", "LUIS", "ANTONIO", "MANUEL", "FRANCISCO", "MIGUEL", "RAFAEL", "CARLOS", "JESÚS",
+    "GUADALUPE", "ÁNGEL", "RAMÓN", "ALEJANDRO", "FERNANDO", "JAVIER", "ALBERTO", "EDUARDO", "ENRIQUE", "SALVADOR",
+    
+    # Mexican feminine second names  
+    "JOSÉ", "MARÍA", "GUADALUPE", "CARMEN", "TERESA", "ISABEL", "ESPERANZA", "ROSA", "ELENA", "PATRICIA",
+    "CONCEPCIÓN", "DOLORES", "SOCORRO", "LUZ", "AMPARO", "REFUGIO", "PILAR", "SOLEDAD", "REMEDIOS", "TRINIDAD"
+]
+
+COUNTRY_DATA['brazil']['second_names'] = [
+    # Brazilian masculine second names (often use "de" constructions)
+    "JOSÉ", "JOÃO", "ANTÔNIO", "FRANCISCO", "CARLOS", "PAULO", "PEDRO", "LUCAS", "LUÍS", "MARCOS",
+    "RAFAEL", "DANIEL", "MARCELO", "BRUNO", "RODRIGO", "FERNANDO", "GUSTAVO", "EDUARDO", "GABRIEL", "LEONARDO",
+    
+    # Brazilian feminine second names
+    "MARIA", "ANA", "FRANCISCA", "ANTÔNIA", "ADRIANA", "JULIANA", "MÁRCIA", "FERNANDA", "PATRÍCIA", "ALINE",
+    "CRISTINA", "CAMILA", "CARLA", "REGINA", "VERA", "LÚCIA", "HELENA", "SILVIA", "MÔNICA", "PAULA"
+]
+
+COUNTRY_DATA['uruguay']['second_names'] = [
+    # Uruguayan masculine second names
+    "JOSÉ", "MARÍA", "CARLOS", "LUIS", "ANTONIO", "MANUEL", "FRANCISCO", "MIGUEL", "RAFAEL", "ALBERTO",
+    "EDUARDO", "ALEJANDRO", "ANDRÉS", "ROBERTO", "PEDRO", "DANIEL", "GABRIEL", "DIEGO", "SEBASTIÁN", "PABLO",
+    
+    # Uruguayan feminine second names
+    "MARÍA", "JOSÉ", "ISABEL", "CRISTINA", "ELENA", "TERESA", "PATRICIA", "CARMEN", "ROSA", "ANA",
+    "LAURA", "BEATRIZ", "ESPERANZA", "MERCEDES", "SOLEDAD", "AMPARO", "ROCÍO", "VICTORIA", "GLORIA", "PAZ"
+]
+
+# Backwards compatibility
+chilean_second_names = COUNTRY_DATA['chile']['second_names']
+
 # Keep legacy 'names' for backward compatibility
 first_names = chilean_first_names
 second_names = chilean_second_names
 
-# Collection of common Chilean surnames
-# Includes the most common family names found in Chile
-chilean_surnames = [
+# Add surnames to country data
+COUNTRY_DATA['chile']['surnames'] = [
     # Most common Chilean surnames
     "GONZÁLEZ", "MUÑOZ", "ROJAS", "DÍAZ", "PÉREZ", "SOTO", "CONTRERAS", "SILVA", "MARTÍNEZ", "SEPÚLVEDA",
     "MORALES", "RODRÍGUEZ", "LÓPEZ", "ARAYA", "FUENTES", "HERNÁNDEZ", "TORRES", "ESPINOZA", "FLORES",
@@ -137,15 +232,41 @@ chilean_surnames = [
     "PUEBLA", "QUEZADA", "ROBLES", "SEGOVIA", "URRUTIA", "VILLANUEVA", "ANDRADE", "CARVALLO", "DONOSO"
 ]
 
-# Keep backward compatibility
-surnames = chilean_surnames
+COUNTRY_DATA['mexico']['surnames'] = [
+    # Most common Mexican surnames
+    "HERNÁNDEZ", "GARCÍA", "MARTÍNEZ", "LÓPEZ", "GONZÁLEZ", "RODRÍGUEZ", "PÉREZ", "SÁNCHEZ", "RAMÍREZ", "CRUZ",
+    "FLORES", "GÓMEZ", "MORALES", "VÁZQUEZ", "JIMÉNEZ", "RUIZ", "HERNÁN", "DÍAZ", "MORENO", "MUÑOZ",
+    "ÁLVAREZ", "ROMERO", "GUTIÉRREZ", "TORRES", "MENDOZA", "VARGAS", "CASTILLO", "ORTEGA", "REYES", "DELGADO",
+    "GUERRERO", "MEDINA", "AGUILAR", "RAMOS", "CERVANTES", "HERRERA", "LARA", "DOMÍNGUEZ", "CASTRO", "VARELA",
+    "ORTIZ", "RUBIO", "MARÍN", "IGLESIAS", "NUÑEZ", "PEÑA", "RÍOS", "ALONSO", "GARRIDO", "GALLEGO",
+    # Indigenous Mexican surnames
+    "XÓLOTL", "ITURBIDE", "CUAUHTÉMOC", "MOCTEZUMA", "TLACAELEL", "NEZAHUALCÓYOTL", "TONATIUH", "COATLICUE"
+]
 
-# -----------------
-# Chilean Address Database
-# -----------------
-# Collection of authentic street names from major Chilean cities
-# Focused on Santiago and other important Chilean cities for realistic address generation
-chilean_streets = [
+COUNTRY_DATA['brazil']['surnames'] = [
+    # Most common Brazilian surnames
+    "SILVA", "SANTOS", "OLIVEIRA", "SOUZA", "RODRIGUES", "FERREIRA", "ALVES", "PEREIRA", "LIMA", "GOMES",
+    "RIBEIRO", "CARVALHO", "ALMEIDA", "LOPES", "SOARES", "FERNANDES", "VIEIRA", "BARBOSA", "ROCHA", "DIAS",
+    "MONTEIRO", "CARDOSO", "REIS", "ARAÚJO", "CAVALCANTI", "NASCIMENTO", "AZEVEDO", "COSTA", "PINTO", "TEIXEIRA",
+    "MENDES", "MOREIRA", "CORREIA", "MARTINS", "RAMOS", "NUNES", "FREITAS", "CAMPOS", "MIRANDA", "FONSECA",
+    "MACHADO", "MOURA", "MELO", "CUNHA", "PIRES", "CASTRO", "ANDRADE", "COELHO", "FARIAS", "BATISTA"
+]
+
+COUNTRY_DATA['uruguay']['surnames'] = [
+    # Most common Uruguayan surnames (mix of Spanish and some Italian influence)
+    "RODRÍGUEZ", "GONZÁLEZ", "GARCÍA", "LÓPEZ", "MARTÍNEZ", "PÉREZ", "FERNÁNDEZ", "SÁNCHEZ", "DÍAZ", "ÁLVAREZ",
+    "ROMERO", "VARGAS", "CASTRO", "RAMOS", "MORALES", "ORTEGA", "DELGADO", "JIMÉNEZ", "RUIZ", "HERNÁNDEZ",
+    "SILVA", "TORRES", "FLORES", "VEGA", "MEDINA", "AGUILAR", "HERRERA", "MENDOZA", "GUERRERO", "NÚÑEZ",
+    "PEÑA", "RÍOS", "GÓMEZ", "CONTRERAS", "GUTIÉRREZ", "REYES", "ESTRADA", "PAREDES", "DOMÍNGUEZ", "LARA",
+    # Italian influence surnames common in Uruguay
+    "FERRARI", "ROSSI", "BRUNO", "MARTINO", "ROMANO", "RICCI", "COSTA", "MAZZA", "RUSSO", "GRECO"
+]
+
+# Backwards compatibility  
+chilean_surnames = COUNTRY_DATA['chile']['surnames']
+
+# Add addresses and cities to country data
+COUNTRY_DATA['chile']['streets'] = [
     # Santiago - Main avenues and streets
     "Av. Libertador Bernardo O'Higgins",  # Main avenue in Santiago
     "Av. Apoquindo",                      # Upscale area in Las Condes
@@ -181,9 +302,79 @@ chilean_streets = [
     "Calle Los Aromos",                   # Residential street name
 ]
 
-# Chilean cities for realistic addresses
-chilean_cities = [
-    # Major Chilean cities
+COUNTRY_DATA['mexico']['streets'] = [
+    # Mexican streets with colonias and typical names
+    "Av. Insurgentes Sur",                # Major avenue in Mexico City
+    "Av. Reforma",                        # Famous avenue in Mexico City
+    "Calle Francisco I. Madero",          # Historic street in Centro
+    "Av. Juárez",                         # Important avenue
+    "Calle 16 de Septiembre",             # Independence Day street
+    "Av. Universidad",                    # University avenue
+    "Calle Puebla",                       # Street named after state
+    "Av. Chapultepec",                    # Street in Roma Norte
+    "Calle Orizaba",                      # Street in Roma Norte colonia
+    "Av. Álvaro Obregón",                 # Avenue named after president
+    "Calle Insurgentes Norte",            # Northern section of Insurgentes
+    "Av. Revolución",                     # Avenue commemorating the Revolution
+    "Eje Central Lázaro Cárdenas",        # Major north-south axis
+    "Calle Durango",                      # Street in Colonia Roma
+    "Calle Londres",                      # Street in Zona Rosa
+    "Av. Coyoacán",                       # Avenue to Coyoacán
+    "Calle Medellín",                     # Street in Colonia Roma
+    "Av. Cuauhtémoc",                     # Avenue named after Aztec emperor
+    "Calle Monterrey",                    # Street in Colonia Roma
+    "Av. División del Norte"              # Major south avenue
+]
+
+COUNTRY_DATA['brazil']['streets'] = [
+    # Brazilian streets with typical Portuguese naming
+    "Av. Paulista",                       # Famous avenue in São Paulo
+    "Rua Augusta",                        # Well-known street in São Paulo
+    "Av. Ipiranga",                       # Avenue in São Paulo
+    "Rua da Consolação",                  # Street in São Paulo
+    "Av. Copacabana",                     # Famous avenue in Rio
+    "Rua Visconde de Pirajá",             # Street in Ipanema
+    "Av. Atlântica",                      # Beachfront avenue in Rio
+    "Rua do Ouvidor",                     # Historic street in Rio Centro
+    "Av. Presidente Vargas",              # Avenue named after president
+    "Rua Direita",                        # Traditional street name
+    "Av. Brasil",                         # Avenue named after country
+    "Rua das Flores",                     # "Street of the Flowers"
+    "Av. Santos Dumont",                  # Aviation pioneer avenue
+    "Rua Barão de Itapetininga",          # Street with noble title
+    "Av. São João",                       # Saint John avenue
+    "Rua Oscar Freire",                   # Upscale shopping street
+    "Av. Brigadeiro Faria Lima",          # Business district avenue
+    "Rua 25 de Março",                    # Commercial street
+    "Av. Rebouças",                       # Major avenue in São Paulo
+    "Rua da Liberdade"                    # Street in Japanese district
+]
+
+COUNTRY_DATA['uruguay']['streets'] = [
+    # Uruguayan streets from Montevideo and other cities
+    "Bvar. Artigas",                      # Boulevard named after national hero
+    "Av. 18 de Julio",                    # Main avenue in Montevideo
+    "Av. Italia",                         # Important avenue
+    "Av. Rivera",                         # Major avenue
+    "Av. Gral. Flores",                   # Avenue named after general
+    "Calle Colonia",                      # Historic street
+    "Calle Soriano",                      # Street in downtown Montevideo
+    "Calle Yi",                           # Short downtown street
+    "Calle Durazno",                      # Street named after fruit
+    "Pasaje Pérez Castellanos",           # Small passage
+    "Calle Canelones",                    # Street named after department
+    "Calle San José",                     # Street named after saint
+    "Calle Río Branco",                   # Street named after river
+    "Calle Cerro Largo",                  # Street named after department
+    "Calle Andes",                        # Street named after mountain range
+    "Av. Millán",                         # Major avenue
+    "Calle Mercedes",                     # Street named after department
+    "Av. Agraciada",                      # Historic avenue
+    "Calle Uruguay",                      # Street named after country
+    "Bvar. Batlle y Ordóñez"              # Boulevard named after president
+]
+
+COUNTRY_DATA['chile']['cities'] = [
     "Santiago",           # Capital and largest city
     "Valparaíso",        # Main port city
     "Concepción",        # Southern major city
@@ -198,15 +389,69 @@ chilean_cities = [
     "Chillán",           # Bio-Bio region
     "Copiapó",           # Atacama region
     "Osorno",            # Los Lagos region
-    "Quillota",          # Valparaíso region
-    "Viña del Mar",      # Coastal resort city
-    "San Antonio",       # Port city
-    "Melipilla",         # Metropolitan region
-    "Los Ángeles",       # Bio-Bio region
-    "Curicó",            # Maule region
+    "Valdivia"           # Rivers city
 ]
 
+COUNTRY_DATA['mexico']['cities'] = [
+    "Ciudad de México",   # Capital and largest city
+    "Guadalajara",        # Second largest city
+    "Monterrey",          # Major industrial city
+    "Puebla",             # Historic colonial city
+    "Tijuana",            # Border city with USA
+    "León",               # Leather industry city
+    "Ciudad Juárez",      # Border city
+    "Torreón",            # Northern industrial city
+    "Querétaro",          # Central Mexico city
+    "San Luis Potosí",    # Mining city
+    "Mérida",             # Yucatan capital
+    "Aguascalientes",     # Central city
+    "Mexicali",           # Baja California capital
+    "Culiacán",           # Sinaloa capital
+    "Acapulco"            # Pacific coast resort
+]
+
+COUNTRY_DATA['brazil']['cities'] = [
+    "São Paulo",          # Largest city in South America
+    "Rio de Janeiro",     # Former capital, major tourist destination
+    "Belo Horizonte",     # Major southeastern city
+    "Brasília",           # Current capital
+    "Salvador",           # Historic northeastern city
+    "Fortaleza",          # Major northeastern city
+    "Manaus",             # Amazon region capital
+    "Curitiba",           # Southern city
+    "Recife",             # Major northeastern port
+    "Goiânia",            # Central Brazil city
+    "Belém",              # Amazon river port
+    "Guarulhos",          # Greater São Paulo
+    "Campinas",           # Technology hub
+    "São Luís",           # Northeastern capital
+    "Nova Iguaçu"         # Rio de Janeiro metropolitan area
+]
+
+COUNTRY_DATA['uruguay']['cities'] = [
+    "Montevideo",         # Capital and largest city
+    "Salto",              # Second largest city
+    "Paysandú",           # Important river port
+    "Las Piedras",        # Suburban city near Montevideo
+    "Rivera",             # Border city with Brazil
+    "Maldonado",          # Coastal city
+    "Tacuarembó",         # Northern city
+    "Melo",               # Eastern city
+    "Mercedes",           # Western city
+    "Artigas",            # Northern border city
+    "Minas",              # Central city
+    "San José de Mayo",   # Central city
+    "Durazno",            # Central city
+    "Florida",            # Central city
+    "Treinta y Tres"      # Eastern city
+]
+
+# Backwards compatibility for addresses
+chilean_streets = COUNTRY_DATA['chile']['streets']  
+chilean_cities = COUNTRY_DATA['chile']['cities']
+
 # Keep backward compatibility
+surnames = chilean_surnames
 streets = chilean_streets
 cities = chilean_cities
 
