@@ -930,11 +930,52 @@ def add_realistic_noise(text: str, noise_probability: float = 0.15) -> str:
         _add_abbreviation_noise,
         _add_punctuation_noise,
         _add_case_noise,
+        _add_ocr_character_substitution_noise,
+        _add_ocr_insertion_noise,
+        _add_ocr_deletion_noise,
+        _add_ocr_word_boundary_noise,
+        _add_ocr_spacing_artifacts_noise,
     ]
     
     # Apply one type of noise randomly
     noise_function = random.choice(noise_types)
     return noise_function(text)
+
+def add_enhanced_ocr_noise(text: str, noise_probability: float = 0.25) -> str:
+    """
+    Add enhanced OCR-specific noise to simulate realistic OCR processing errors.
+    
+    This function applies multiple types of OCR errors that commonly occur in
+    scanned documents, making the training data more realistic for NER models
+    that need to handle OCR-processed text.
+    
+    Args:
+        text (str): Original text
+        noise_probability (float): Probability of applying OCR noise (0.0-1.0)
+    
+    Returns:
+        str: Text with OCR-specific noise applied
+    """
+    if random.random() > noise_probability:
+        return text  # No OCR noise applied
+    
+    # OCR-specific noise functions with higher probability of application
+    ocr_noise_types = [
+        _add_ocr_character_substitution_noise,
+        _add_ocr_spacing_artifacts_noise,
+        _add_ocr_insertion_noise,
+        _add_ocr_deletion_noise,
+        _add_ocr_word_boundary_noise,
+    ]
+    
+    # Apply 1-2 types of OCR noise for more realistic artifacts
+    num_noise_types = random.choices([1, 2], weights=[0.7, 0.3])[0]  # 70% chance of 1 noise, 30% chance of 2
+    selected_noise_types = random.sample(ocr_noise_types, min(num_noise_types, len(ocr_noise_types)))
+    
+    for noise_function in selected_noise_types:
+        text = noise_function(text)
+    
+    return text
 
 def _add_spacing_noise(text: str) -> str:
     """Add realistic spacing variations."""
@@ -996,6 +1037,125 @@ def _add_case_noise(text: str) -> str:
             if word.lower() in ["el", "la", "de", "con", "en", "y", "o", "tiene", "registró"] and random.random() < 0.3:
                 words[i] = word.lower()
         return " ".join(words)
+    
+    return text
+
+# -----------------
+# OCR-Specific Noise Functions
+# -----------------
+
+def _add_ocr_character_substitution_noise(text: str) -> str:
+    """Add realistic OCR character substitution errors."""
+    # Common OCR character substitutions
+    ocr_substitutions = {
+        '0': 'O',  # Zero to letter O
+        'O': '0',  # Letter O to zero
+        '1': 'l',  # One to lowercase L
+        'l': '1',  # Lowercase L to one
+        'I': '1',  # Uppercase I to one
+        '6': 'G',  # Six to G
+        '5': 'S',  # Five to S
+        'rn': 'm', # rn combination to m
+        'cl': 'd', # cl combination to d
+        'nn': 'n', # double n to single n
+        'B': '8',  # B to 8
+        '8': 'B',  # 8 to B
+        'Z': '2',  # Z to 2
+        '2': 'Z',  # 2 to Z
+        'u': 'o',  # u to o confusion
+        'a': 'e',  # a to e confusion (slight)
+    }
+    
+    # Apply substitution with low probability to preserve readability
+    if random.random() < 0.2:  # 20% chance of OCR substitution
+        for original, substitute in ocr_substitutions.items():
+            if original in text and random.random() < 0.3:
+                # Only substitute first occurrence to avoid over-noise
+                text = text.replace(original, substitute, 1)
+                break
+    
+    return text
+
+def _add_ocr_insertion_noise(text: str) -> str:
+    """Add realistic OCR character insertion errors."""
+    # Common OCR insertion characters (often artifacts from scanning)
+    insertion_chars = ['m', 'n', 'w', 'u', 'o', 'i', 'l', '1', '|', '.', ',', '-']
+    
+    if random.random() < 0.15:  # 15% chance of insertion
+        words = text.split()
+        if words:
+            # Choose a random word to add insertion to
+            word_idx = random.randint(0, len(words) - 1)
+            word = words[word_idx]
+            
+            if len(word) > 3:  # Only add noise to longer words
+                # Insert random character at random position (not at start/end to preserve entity boundaries)
+                insert_pos = random.randint(1, len(word) - 1)
+                insert_char = random.choice(insertion_chars)
+                words[word_idx] = word[:insert_pos] + insert_char + word[insert_pos:]
+        
+        text = " ".join(words)
+    
+    return text
+
+def _add_ocr_deletion_noise(text: str) -> str:
+    """Add realistic OCR character deletion errors."""
+    if random.random() < 0.1:  # 10% chance of deletion
+        words = text.split()
+        if words:
+            # Choose a random word to delete character from
+            word_idx = random.randint(0, len(words) - 1)
+            word = words[word_idx]
+            
+            if len(word) > 4:  # Only delete from longer words to preserve entities
+                # Delete character from middle of word (not start/end)
+                delete_pos = random.randint(1, len(word) - 2)
+                words[word_idx] = word[:delete_pos] + word[delete_pos + 1:]
+        
+        text = " ".join(words)
+    
+    return text
+
+def _add_ocr_word_boundary_noise(text: str) -> str:
+    """Add realistic OCR word boundary errors (splitting/joining words)."""
+    if random.random() < 0.1:  # 10% chance of boundary error
+        words = text.split()
+        if len(words) > 2:
+            boundary_type = random.choice(['split', 'join'])
+            
+            if boundary_type == 'split' and len(words) > 1:
+                # Split a word incorrectly
+                word_idx = random.randint(0, len(words) - 1)
+                word = words[word_idx]
+                if len(word) > 6:  # Only split longer words
+                    split_pos = random.randint(2, len(word) - 2)
+                    words[word_idx] = word[:split_pos] + " " + word[split_pos:]
+            
+            elif boundary_type == 'join' and len(words) > 1:
+                # Join two adjacent words incorrectly
+                join_idx = random.randint(0, len(words) - 2)
+                if len(words[join_idx]) < 8 and len(words[join_idx + 1]) < 8:  # Avoid joining very long words
+                    joined_word = words[join_idx] + words[join_idx + 1]
+                    words = words[:join_idx] + [joined_word] + words[join_idx + 2:]
+        
+        text = " ".join(words)
+    
+    return text
+
+def _add_ocr_spacing_artifacts_noise(text: str) -> str:
+    """Add OCR-specific spacing artifacts common in scanned documents."""
+    if random.random() < 0.2:  # 20% chance of spacing artifacts
+        spacing_patterns = [
+            lambda t: t.replace(" ", "  "),     # Double spaces
+            lambda t: t.replace(" ", "   "),    # Triple spaces (OCR artifact)
+            lambda t: t.replace(".", " . "),    # Space around periods
+            lambda t: t.replace(",", " , "),    # Space around commas
+            lambda t: t.replace(":", " : "),    # Space around colons
+            lambda t: t.replace("-", " - "),    # Space around hyphens
+            lambda t: t.replace("  ", " "),     # Sometimes reduce multiple spaces
+        ]
+        pattern = random.choice(spacing_patterns)
+        text = pattern(text)
     
     return text
 
@@ -1135,7 +1295,7 @@ def apply_country_noise(sentence: str, country: str, noise_level: float) -> str:
     
     return sentence
 
-def generate_example_with_noise(country: str = "chile", include_noise: bool = True, noise_level: float = 0.15) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
+def generate_example_with_noise(country: str = "chile", include_noise: bool = True, noise_level: float = 0.15, ocr_noise: bool = False) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
     """
     Generate a complete customer data example for any supported country with controlled noise and guaranteed zero E1010 errors.
     
@@ -1155,6 +1315,7 @@ def generate_example_with_noise(country: str = "chile", include_noise: bool = Tr
         country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
         include_noise (bool): Whether to add realistic noise patterns
         noise_level (float): Intensity of noise (0.0-1.0)
+        ocr_noise (bool): Whether to apply enhanced OCR-specific noise patterns
     
     Returns:
         Tuple[str, Dict]: A tuple containing:
@@ -1209,6 +1370,10 @@ def generate_example_with_noise(country: str = "chile", include_noise: bool = Tr
     # Apply country-specific noise if requested
     if include_noise:
         sentence = apply_country_noise(sentence, country, noise_level)
+        
+        # Apply enhanced OCR noise if specifically requested
+        if ocr_noise:
+            sentence = add_enhanced_ocr_noise(sentence, noise_level * 1.5)  # Slightly higher OCR noise probability
     
     # CRITICAL: Advanced entity detection with E1010 conflict resolution
     entity_mappings = [
@@ -1251,12 +1416,12 @@ def generate_example_with_noise(country: str = "chile", include_noise: bool = Tr
     
     return (sentence, {"entities": entities})
 
-def generate_chilean_example_with_noise(include_noise: bool = True, noise_level: float = 0.15) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
+def generate_chilean_example_with_noise(include_noise: bool = True, noise_level: float = 0.15, ocr_noise: bool = False) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
     """
     Generate a complete Chilean customer data example with controlled noise and guaranteed zero E1010 errors.
     (Backwards compatibility wrapper)
     """
-    return generate_example_with_noise("chile", include_noise, noise_level)
+    return generate_example_with_noise("chile", include_noise, noise_level, ocr_noise)
     """
     Generate a complete Chilean customer data example with controlled noise and guaranteed zero E1010 errors.
     
@@ -1370,7 +1535,7 @@ def generate_chilean_example_with_noise(include_noise: bool = True, noise_level:
     
     return (sentence, {"entities": entities})
 
-def generate_multiple_chilean_examples_with_noise(count: int = 5, include_noise: bool = True, noise_level: float = 0.15) -> List[Tuple[str, Dict[str, List[Tuple[int, int, str]]]]]:
+def generate_multiple_chilean_examples_with_noise(count: int = 5, include_noise: bool = True, noise_level: float = 0.15, ocr_noise: bool = False) -> List[Tuple[str, Dict[str, List[Tuple[int, int, str]]]]]:
     """
     Generate multiple Chilean customer data examples with controlled noise for training or testing.
     
@@ -1382,13 +1547,14 @@ def generate_multiple_chilean_examples_with_noise(count: int = 5, include_noise:
         count (int): Number of examples to generate
         include_noise (bool): Whether to add realistic noise patterns
         noise_level (float): Intensity of noise (0.0-1.0)
+        ocr_noise (bool): Whether to apply enhanced OCR-specific noise patterns
     
     Returns:
         List[Tuple]: List of (sentence, annotations) tuples
     """
     examples = []
     for _ in range(count):
-        example = generate_chilean_example_with_noise(include_noise, noise_level)
+        example = generate_chilean_example_with_noise(include_noise, noise_level, ocr_noise)
         examples.append(example)
     return examples
 
@@ -1512,6 +1678,7 @@ def make_chilean_docbin_with_noise(n_total: int = 100000,
                                  balance: bool = True, 
                                  include_noise: bool = True,
                                  noise_level: float = 0.15,
+                                 ocr_noise: bool = False,
                                  output_dir: str = ".") -> Tuple[DocBin, Dict[str, int]]:
     """
     Create a spaCy DocBin for Chilean NER training with controlled noise and guaranteed zero E1010 errors.
@@ -1524,6 +1691,7 @@ def make_chilean_docbin_with_noise(n_total: int = 100000,
         balance (bool): Whether to balance examples across complexity modes
         include_noise (bool): Whether to add realistic noise patterns
         noise_level (float): Intensity of noise (0.0-1.0)
+        ocr_noise (bool): Whether to apply enhanced OCR-specific noise patterns
         output_dir (str): Directory to save the training files
     
     Returns:
@@ -1676,6 +1844,7 @@ def create_chilean_training_dataset_with_noise(train_size: int = 80000,
                                              dev_size: int = 20000, 
                                              include_noise: bool = True,
                                              noise_level: float = 0.15,
+                                             ocr_noise: bool = False,
                                              output_dir: str = "output") -> None:
     """
     Create comprehensive Chilean training and development datasets with controlled noise.
@@ -1688,6 +1857,7 @@ def create_chilean_training_dataset_with_noise(train_size: int = 80000,
         dev_size (int): Number of development examples  
         include_noise (bool): Whether to add realistic noise patterns
         noise_level (float): Intensity of noise (0.0-1.0)
+        ocr_noise (bool): Whether to apply enhanced OCR-specific noise patterns
         output_dir (str): Output directory for files
     """
     print("=" * 80)
@@ -1705,6 +1875,7 @@ def create_chilean_training_dataset_with_noise(train_size: int = 80000,
         balance=True, 
         include_noise=include_noise,
         noise_level=noise_level,
+        ocr_noise=ocr_noise,
         output_dir=output_dir
     )
     
@@ -1715,6 +1886,7 @@ def create_chilean_training_dataset_with_noise(train_size: int = 80000,
         balance=True, 
         include_noise=include_noise,
         noise_level=noise_level * 0.8,  # Slightly less noise for dev set
+        ocr_noise=ocr_noise,
         output_dir=output_dir
     )
     
@@ -1734,7 +1906,8 @@ def create_chilean_training_dataset_with_noise(train_size: int = 80000,
         "noise_configuration": {
             "noise_enabled": include_noise,
             "noise_level": noise_level,
-            "dev_noise_level": noise_level * 0.8
+            "dev_noise_level": noise_level * 0.8,
+            "ocr_noise_enabled": ocr_noise
         },
         "files": {
             "training": str(train_file),
@@ -1870,7 +2043,7 @@ def export_chilean_data_to_excel_with_noise(n_examples: int = 100,
     for _ in range(remaining):
         mode = random.choice(modes)
         try:
-            sentence, annotations = generate_chilean_example_with_noise(include_noise, noise_level)
+            sentence, annotations = generate_chilean_example_with_noise(include_noise, noise_level, ocr_noise)
             
             entities = annotations["entities"]
             entity_details = []
@@ -2042,6 +2215,7 @@ def demonstrate_multi_country_functionality_with_noise():
     parser.add_argument("--noise", action="store_true", default=True, help="Enable noise generation")
     parser.add_argument("--no-noise", action="store_true", help="Disable noise generation")
     parser.add_argument("--noise-level", type=float, default=0.15, help="Noise intensity (0.0-1.0)")
+    parser.add_argument("--ocr-noise", action="store_true", help="Enable enhanced OCR-specific noise patterns")
     
     args = parser.parse_args()
     
