@@ -1,0 +1,363 @@
+# Transformer NER Training Documentation
+==========================================
+
+## Overview
+
+This directory contains a complete pipeline for training BERT-based multilingual NER models for Latin American PII (Personally Identifiable Information) data. The system supports Spanish and Portuguese languages across Chile, Mexico, Brazil, and Uruguay.
+
+## 🎯 Features
+
+- **Multilingual Support**: Spanish and Portuguese language training
+- **Multi-country Data**: Chile, Mexico, Brazil, Uruguay with realistic data patterns
+- **7 Entity Types**: CUSTOMER_NAME, ID_NUMBER, ADDRESS, PHONE_NUMBER, EMAIL, AMOUNT, SEQ_NUMBER
+- **OCR Noise Simulation**: Realistic character substitutions for robust training
+- **BIO Tagging**: Proper entity labeling scheme for transformer models
+- **Production Ready**: Comprehensive evaluation, checkpointing, and model saving
+
+## 📁 Files Structure
+
+```
+Transformers/
+├── transformer_data_generator.py  # Dataset generation for transformers
+├── train_transformer_ner.py      # BERT model training script
+├── quick_test.py                  # Quick validation script
+├── workflow.sh                    # Convenient workflow commands
+├── requirements.txt               # Python dependencies
+├── transformer_notes.txt          # This documentation
+├── output/                        # Generated datasets
+├── └── train_transformer_*.json   # Training datasets
+├── └── dev_transformer_*.json     # Development datasets
+├── └── transformer_dataset_stats_*.json  # Dataset statistics
+└── models/                        # Trained models
+    └── transformer_ner_*/         # Model directories with timestamps
+        ├── final_model/            # Best model checkpoint
+        ├── training_config.json    # Training configuration
+        └── evaluation_results.json # Final evaluation metrics
+```
+
+## 🚀 Quick Start
+
+### 1. Environment Setup
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Create output directories
+mkdir -p output models
+```
+
+### 2. Quick Test (Recommended First Step)
+```bash
+# Run complete quick test (1K examples, 1 epoch)
+python quick_test.py
+```
+
+### 3. Production Training
+```bash
+# Generate production dataset (50K train, 10K dev)
+python transformer_data_generator.py --train-size 50000 --dev-size 10000
+
+# Train production model (5 epochs)
+python train_transformer_ner.py --epochs 5 --batch-size 16
+```
+
+## 📊 Dataset Generation
+
+### Basic Usage
+```bash
+python transformer_data_generator.py \
+    --countries chile mexico brazil uruguay \
+    --train-size 50000 \
+    --dev-size 10000 \
+    --noise-level 0.3 \
+    --output-dir output
+```
+
+### Parameters
+- `--countries`: List of countries (chile, mexico, brazil, uruguay)
+- `--train-size`: Number of training examples (default: 50000)
+- `--dev-size`: Number of development examples (default: 10000)
+- `--noise-level`: OCR noise level 0.0-1.0 (default: 0.3)
+- `--output-dir`: Output directory (default: output)
+
+### Recommended Dataset Sizes
+- **Quick Test**: 1K train, 200 dev (for validation)
+- **Production**: 50K train, 10K dev (good balance)
+- **High Accuracy**: 200K train, 40K dev (maximum quality)
+
+## 🤖 Model Training
+
+### Basic Usage
+```bash
+python train_transformer_ner.py \
+    --model-name bert-base-multilingual-cased \
+    --train-file output/train_transformer_50000.json \
+    --dev-file output/dev_transformer_10000.json \
+    --epochs 5 \
+    --batch-size 16 \
+    --learning-rate 2e-5
+```
+
+### Parameters
+- `--model-name`: Pre-trained model (default: bert-base-multilingual-cased)
+- `--train-file`: Training dataset JSON file
+- `--dev-file`: Development dataset JSON file
+- `--epochs`: Number of training epochs (default: 5)
+- `--batch-size`: Training batch size (default: 16)
+- `--learning-rate`: Learning rate (default: 2e-5)
+- `--max-length`: Maximum sequence length (default: 128)
+
+### Recommended Training Configurations
+
+#### Quick Test
+```bash
+python train_transformer_ner.py \
+    --epochs 1 \
+    --batch-size 8 \
+    --learning-rate 2e-5
+```
+
+#### Production
+```bash
+python train_transformer_ner.py \
+    --epochs 5 \
+    --batch-size 16 \
+    --learning-rate 2e-5
+```
+
+#### High Accuracy
+```bash
+python train_transformer_ner.py \
+    --epochs 8 \
+    --batch-size 16 \
+    --learning-rate 1e-5
+```
+
+## 📈 Performance Expectations
+
+### Entity Success Rates (Expected)
+- **CUSTOMER_NAME**: >95% (high accuracy)
+- **EMAIL**: >95% (simple pattern)
+- **PHONE_NUMBER**: >95% (standardized format)
+- **ADDRESS**: >90% (consistent structure)
+- **AMOUNT**: >85% (currency formatting)
+- **ID_NUMBER**: >80% (complex country-specific formats)
+- **SEQ_NUMBER**: >75% (high variability)
+
+### Training Times (Approximate)
+- **Quick Test (1K, 1 epoch)**: 2-5 minutes
+- **Production (50K, 5 epochs)**: 2-4 hours
+- **Large Scale (200K, 8 epochs)**: 8-16 hours
+
+*Times vary based on hardware (GPU recommended)*
+
+## 🔧 Workflow Commands
+
+The `workflow.sh` script provides convenient commands:
+
+```bash
+# Source the workflow (run once per session)
+source workflow.sh
+
+# Quick test
+quick_test
+
+# Production workflow
+production_workflow
+
+# Generate specific datasets
+generate_production_data
+generate_large_data
+
+# Train specific models
+train_production_model
+train_large_model
+
+# Setup and cleanup
+setup_environment
+clean_outputs
+```
+
+## 🎯 Entity Types and Examples
+
+### CUSTOMER_NAME
+- **Spanish**: JOSÉ GONZÁLEZ, MARÍA RODRÍGUEZ
+- **Portuguese**: JOÃO SILVA, MARIA SANTOS
+
+### ID_NUMBER
+- **Chile (RUT)**: 12.345.678-9
+- **Mexico (CURP)**: ABCD123456EFGHIJ12
+- **Brazil (CPF)**: 123.456.789-01
+- **Uruguay (CI)**: 1.234.567-8
+
+### ADDRESS
+- **Spanish**: Av. Providencia 123, Santiago
+- **Portuguese**: Av. Paulista 456, São Paulo
+
+### PHONE_NUMBER
+- **Chile**: +56 912345678
+- **Mexico**: +52 5512345678
+- **Brazil**: +55 11 987654321
+- **Uruguay**: +598 91234567
+
+### EMAIL
+- **Format**: nombre.apellido@domain.com
+- **Domains**: gmail.com, empresa.cl/.mx/.com.br/.com.uy
+
+### AMOUNT
+- **Spanish**: $50,000, $1,234,567
+- **Portuguese**: R$ 50.000,00, R$ 1.234.567,89
+
+### SEQ_NUMBER
+- **Formats**: 123456-A, CL12345, BR789012, A123456
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+#### ImportError: No module named 'transformers'
+```bash
+pip install -r requirements.txt
+```
+
+#### CUDA out of memory
+```bash
+# Reduce batch size
+python train_transformer_ner.py --batch-size 8
+
+# Or disable FP16
+python train_transformer_ner.py --fp16 False
+```
+
+#### Dataset files not found
+```bash
+# Generate dataset first
+python transformer_data_generator.py --train-size 1000 --dev-size 200
+```
+
+#### Low entity success rates
+- Reduce `--noise-level` (try 0.2 instead of 0.3)
+- Increase dataset size
+- Check entity alignment in generated data
+
+### Performance Optimization
+
+#### For Faster Training
+- Use GPU if available
+- Enable FP16 precision (default: enabled)
+- Increase batch size if memory allows
+- Use fewer epochs for initial testing
+
+#### For Better Accuracy
+- Increase dataset size (200K+ examples)
+- Use more training epochs (8-10)
+- Lower learning rate (1e-5)
+- Reduce noise level (0.2-0.25)
+
+## 📋 Comparison with spaCy Version
+
+### Advantages of Transformer Approach
+✅ **Better Multilingual Support**: Native Spanish/Portuguese handling
+✅ **Contextual Understanding**: BERT's attention mechanism
+✅ **Transfer Learning**: Pre-trained knowledge
+✅ **Industry Standard**: Widely adopted in production
+✅ **Scalability**: Easier to adapt to new languages/domains
+
+### Advantages of spaCy Approach
+✅ **Faster Inference**: Lower latency in production
+✅ **Smaller Models**: Less memory requirements
+✅ **Simpler Deployment**: Fewer dependencies
+✅ **Custom Tokenization**: Better control over text processing
+
+### Performance Comparison (Expected)
+| Metric | spaCy (Optimized) | Transformer |
+|--------|------------------|-------------|
+| F1 Score | 88-92% | 92-96% |
+| Inference Speed | Very Fast | Moderate |
+| Model Size | Small (50MB) | Large (500MB) |
+| Training Time | Fast | Moderate |
+| Memory Usage | Low | High |
+
+## 🔄 Migration from spaCy
+
+If you have been using the spaCy version (data_generation_noisy.py), here's how to migrate:
+
+### 1. Data Format Conversion
+The transformer version uses JSON format instead of spaCy binary:
+```python
+# spaCy: .spacy files
+# Transformer: .json files with entities list
+```
+
+### 2. Entity Labels
+Both use the same entity types:
+- CUSTOMER_NAME, ID_NUMBER, ADDRESS, PHONE_NUMBER, EMAIL, AMOUNT, SEQ_NUMBER
+
+### 3. Noise Generation
+The transformer version has more conservative noise to maintain token alignment:
+- Reduced character substitution rates
+- Better entity boundary preservation
+- Improved OCR simulation
+
+### 4. Training Process
+```bash
+# spaCy approach
+python data_generation_noisy.py --examples 50000
+python -m spacy train config.cfg --output models
+
+# Transformer approach  
+python transformer_data_generator.py --train-size 50000 --dev-size 10000
+python train_transformer_ner.py --epochs 5
+```
+
+## 📊 Expected Results
+
+After successful training, you should see:
+
+### Dataset Generation
+```
+🚀 Generating 60,000 examples for Transformer training...
+🌎 Countries: chile, mexico, brazil, uruguay
+🎭 Noise level: 0.3
+✅ Generated 50,000/50,000 training examples
+✅ Generated 10,000/10,000 dev examples
+✅ Dataset generated successfully!
+📊 Training examples: 50,000 (Entity success: 91.2%)
+📊 Dev examples: 10,000 (Entity success: 93.1%)
+```
+
+### Model Training
+```
+🚀 Starting transformer NER training...
+📊 Training configuration:
+   - Model: bert-base-multilingual-cased
+   - Train examples: 50,000
+   - Dev examples: 10,000
+   - Batch size: 16
+   - Learning rate: 2e-5
+   - Epochs: 5
+
+Epoch 1/5: 100%|████████| 3125/3125 [25:30<00:00, 2.04it/s]
+Epoch 2/5: 100%|████████| 3125/3125 [25:28<00:00, 2.04it/s]
+...
+✅ Training completed!
+📊 Dev F1 Score: 0.9342
+```
+
+## 🎉 Next Steps
+
+1. **Generate Your Dataset**: Start with quick test, then scale up
+2. **Train Your Model**: Begin with production settings
+3. **Evaluate Results**: Check F1 scores and entity-specific metrics
+4. **Fine-tune**: Adjust hyperparameters based on results
+5. **Deploy**: Use trained model for inference on new data
+
+## 💡 Tips for Success
+
+- **Start Small**: Always run quick_test.py first
+- **Monitor Training**: Watch for overfitting in evaluation metrics
+- **Validate Data**: Check entity alignment in generated examples
+- **Experiment**: Try different noise levels and model sizes
+- **Document**: Keep track of what works best for your use case
+
+For questions or issues, refer to the troubleshooting section or check the generated log files in the model output directories.

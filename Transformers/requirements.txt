@@ -1,0 +1,40 @@
+# Transformer NER Training Requirements
+# ====================================
+# Dependencies for BERT-based multilingual NER training
+# Compatible with Python 3.8+
+
+# Core ML and Transformers
+torch>=1.9.0
+transformers>=4.21.0
+datasets>=2.0.0
+tokenizers>=0.13.0
+
+# Data Processing
+pandas>=1.3.0
+numpy>=1.21.0
+scikit-learn>=1.0.0
+
+# Accelerated Training (Optional but recommended)
+accelerate>=0.20.0
+
+# CUDA Support (Uncomment if using GPU)
+# torch>=1.9.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
+
+# Evaluation and Monitoring
+seqeval>=1.2.0  # For NER-specific evaluation metrics
+
+# Utility
+tqdm>=4.62.0
+argparse>=1.4.0
+
+# Development and Testing (Optional)
+pytest>=6.0.0
+jupyter>=1.0.0
+matplotlib>=3.4.0
+seaborn>=0.11.0
+
+# Memory and Performance Optimization
+psutil>=5.8.0
+
+# Additional NLP Tools (Optional)
+spacy>=3.4.0  # For comparison with spaCy models
