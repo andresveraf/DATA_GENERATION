@@ -2015,6 +2015,432 @@ def export_chilean_data_to_excel_with_noise(n_examples: int = 100,
     if include_noise:
         print(f"  • Noise_Analysis - Noise pattern analysis")
 
+def export_country_data_to_excel_with_noise(country: str = "chile",
+                                          n_examples: int = 100, 
+                                          output_file: str = "country_customer_data_review_noisy.xlsx",
+                                          include_noise: bool = True,
+                                          noise_level: float = 0.15) -> None:
+    """
+    Export generated customer data for a specific country to Excel for comprehensive review and validation.
+    
+    Creates a detailed Excel workbook with multiple sheets for thorough analysis:
+    - Summary statistics and overview
+    - Complete data with entity annotations
+    - Country-specific naming pattern analysis
+    - Entity type distribution
+    - Noise pattern analysis
+    
+    Args:
+        country (str): Country code - "chile", "mexico", "brazil", or "uruguay"
+        n_examples (int): Number of examples to generate and export
+        output_file (str): Excel filename
+        include_noise (bool): Whether to include noise in generated data
+        noise_level (float): Intensity of noise (0.0-1.0)
+    """
+    print(f"📊 Generating {n_examples} {country} examples for Excel review...")
+    print(f"🎭 Noise generation: {'Enabled' if include_noise else 'Disabled'}")
+    print(f"📁 Output file: {output_file}")
+    
+    # Generate examples using the generic function
+    all_data = []
+    entity_counts = {}
+    noise_patterns = {}
+    name_patterns = {
+        "compound_first_names": 0,
+        "double_surnames": 0,
+        "simple_names": 0
+    }
+    
+    for i in range(n_examples):
+        try:
+            sentence, annotations = generate_example_with_noise(country, include_noise, noise_level)
+            
+            # Analyze naming patterns
+            entities = annotations["entities"]
+            for start, end, label in entities:
+                if label == "CUSTOMER_NAME":
+                    name = sentence[start:end]
+                    name_parts = name.split()
+                    
+                    if len(name_parts) == 4:  # First Second Paternal Maternal
+                        name_patterns["compound_first_names"] += 1
+                        name_patterns["double_surnames"] += 1
+                    elif len(name_parts) == 3:
+                        # Check if second name exists (basic heuristic)
+                        if country in COUNTRY_DATA and any(name_parts[1] in COUNTRY_DATA[country].get('second_names', [])):
+                            name_patterns["compound_first_names"] += 1
+                        else:
+                            name_patterns["double_surnames"] += 1
+                    else:
+                        name_patterns["simple_names"] += 1
+                    break
+            
+            # Count entities
+            for start, end, label in entities:
+                entity_counts[label] = entity_counts.get(label, 0) + 1
+            
+            # Analyze noise patterns
+            if include_noise:
+                if "  " in sentence:  # Double spaces
+                    noise_patterns["spacing"] = noise_patterns.get("spacing", 0) + 1
+                if "Av." in sentence or "Tel." in sentence:  # Abbreviations
+                    noise_patterns["abbreviations"] = noise_patterns.get("abbreviations", 0) + 1
+                if " ." in sentence or " :" in sentence:  # Punctuation spacing
+                    noise_patterns["punctuation"] = noise_patterns.get("punctuation", 0) + 1
+            
+            # Extract individual entities for detailed view
+            entity_details = []
+            for start, end, label in entities:
+                entity_text = sentence[start:end]
+                entity_details.append(f"{label}: '{entity_text}'")
+            
+            all_data.append({
+                "ID": i + 1,
+                "Country": country.upper(),
+                "Generated_Text": sentence,
+                "Entity_Count": len(entities),
+                "Entities": " | ".join(entity_details),
+                "Has_Noise": include_noise,
+                "Text_Length": len(sentence)
+            })
+            
+        except Exception as e:
+            continue
+    
+    # Create Excel workbook
+    print(f"📝 Creating Excel workbook with {len(all_data)} examples...")
+    
+    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+        # 1. Summary Sheet
+        summary_data = {
+            "Metric": [
+                "Total Examples Generated",
+                "Country",
+                "Noise Generation Enabled",
+                "Noise Level",
+                "Average Text Length",
+                "Average Entities per Example",
+                "Unique Entity Types",
+                "Compound First Names",
+                "Double Surnames",
+                "Simple Names",
+                "Generation Date"
+            ],
+            "Value": [
+                len(all_data),
+                country.upper(),
+                "Yes" if include_noise else "No",
+                f"{noise_level:.2f}" if include_noise else "N/A",
+                f"{sum(d['Text_Length'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
+                f"{sum(d['Entity_Count'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
+                len(entity_counts),
+                name_patterns["compound_first_names"],
+                name_patterns["double_surnames"],
+                name_patterns["simple_names"],
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ]
+        }
+        
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_excel(writer, sheet_name='Summary', index=False)
+        
+        # 2. All Data Sheet
+        all_data_df = pd.DataFrame(all_data)
+        all_data_df.to_excel(writer, sheet_name='All_Data', index=False)
+        
+        # 3. Name Pattern Analysis Sheet
+        name_analysis = [
+            {"Pattern_Type": "Compound First Names", "Count": name_patterns["compound_first_names"], "Percentage": f"{name_patterns['compound_first_names']/len(all_data)*100:.1f}%" if all_data else "0%"},
+            {"Pattern_Type": "Double Surnames", "Count": name_patterns["double_surnames"], "Percentage": f"{name_patterns['double_surnames']/len(all_data)*100:.1f}%" if all_data else "0%"},
+            {"Pattern_Type": "Simple Names", "Count": name_patterns["simple_names"], "Percentage": f"{name_patterns['simple_names']/len(all_data)*100:.1f}%" if all_data else "0%"}
+        ]
+        
+        name_df = pd.DataFrame(name_analysis)
+        name_df.to_excel(writer, sheet_name='Name_Analysis', index=False)
+        
+        # 4. Entity Statistics Sheet
+        entity_descriptions = {
+            "CUSTOMER_NAME": "Full customer names with country conventions",
+            "ID_NUMBER": "Country-specific ID numbers (RUT, CURP, CPF, etc.)",
+            "ADDRESS": "Complete addresses with country-specific formats",
+            "PHONE": "Country-specific phone numbers",
+            "EMAIL": "Email addresses with country domains",
+            "AMOUNT": "Monetary amounts with local currencies",
+            "SEQ_NUMBER": "Sequential reference numbers"
+        }
+        
+        entity_analysis = []
+        for entity_type, count in entity_counts.items():
+            percentage = (count / len(all_data) * 100) if all_data else 0
+            entity_analysis.append({
+                "Entity_Type": entity_type,
+                "Count": count,
+                "Percentage": f"{percentage:.1f}%",
+                "Description": entity_descriptions.get(entity_type, "Entity type")
+            })
+        
+        entity_df = pd.DataFrame(entity_analysis)
+        entity_df.to_excel(writer, sheet_name='Entity_Statistics', index=False)
+        
+        # 5. Noise Analysis Sheet (if noise is enabled)
+        if include_noise and noise_patterns:
+            noise_analysis = []
+            for pattern_type, count in noise_patterns.items():
+                noise_analysis.append({
+                    "Noise_Pattern": pattern_type,
+                    "Occurrences": count,
+                    "Percentage": f"{(count / len(all_data) * 100):.1f}%" if all_data else "0%"
+                })
+            
+            noise_df = pd.DataFrame(noise_analysis)
+            noise_df.to_excel(writer, sheet_name='Noise_Analysis', index=False)
+    
+    print(f"✅ Excel file created successfully: {output_file}")
+    print(f"📊 Generated {len(all_data)} examples with {len(entity_counts)} entity types")
+    print(f"🏷️  Entity distribution: {dict(sorted(entity_counts.items()))}")
+    print(f"📋 {country.upper()} naming patterns: {name_patterns}")
+    
+    if include_noise:
+        print(f"🎭 Noise patterns detected: {noise_patterns}")
+    
+    print(f"\n📖 Excel sheets created:")
+    print(f"  • Summary - Overview statistics")
+    print(f"  • All_Data - Complete generated data")
+    print(f"  • Name_Analysis - Country naming pattern analysis")
+    print(f"  • Entity_Statistics - Entity type distribution")
+    if include_noise:
+        print(f"  • Noise_Analysis - Noise pattern analysis")
+
+def export_multi_country_data_to_excel_with_noise(n_examples: int = 100, 
+                                                output_file: str = "multi_country_customer_data_review_noisy.xlsx",
+                                                include_noise: bool = True,
+                                                noise_level: float = 0.15) -> None:
+    """
+    Export generated customer data for all supported countries to Excel for comprehensive review and validation.
+    
+    Creates a detailed Excel workbook with multiple sheets for thorough analysis:
+    - Summary statistics and overview
+    - Complete data with entity annotations for all countries
+    - Analysis by country
+    - Entity type distribution
+    - Noise pattern analysis
+    
+    Args:
+        n_examples (int): Total number of examples to generate across all countries
+        output_file (str): Excel filename
+        include_noise (bool): Whether to include noise in generated data
+        noise_level (float): Intensity of noise (0.0-1.0)
+    """
+    supported_countries = ["chile", "mexico", "brazil", "uruguay"]
+    examples_per_country = n_examples // len(supported_countries)
+    
+    print(f"📊 Generating {n_examples} multi-country examples for Excel review...")
+    print(f"🌎 Countries: {', '.join([c.upper() for c in supported_countries])}")
+    print(f"📈 Examples per country: {examples_per_country}")
+    print(f"🎭 Noise generation: {'Enabled' if include_noise else 'Disabled'}")
+    print(f"📁 Output file: {output_file}")
+    
+    # Generate examples for all countries
+    all_data = []
+    entity_counts = {}
+    noise_patterns = {}
+    country_stats = {}
+    name_patterns = {
+        "compound_first_names": 0,
+        "double_surnames": 0,
+        "simple_names": 0
+    }
+    
+    for country in supported_countries:
+        country_data = []
+        print(f"   🌍 Generating {examples_per_country} examples for {country.upper()}...")
+        
+        for i in range(examples_per_country):
+            try:
+                sentence, annotations = generate_example_with_noise(country, include_noise, noise_level)
+                
+                # Analyze naming patterns
+                entities = annotations["entities"]
+                for start, end, label in entities:
+                    if label == "CUSTOMER_NAME":
+                        name = sentence[start:end]
+                        name_parts = name.split()
+                        
+                        if len(name_parts) == 4:  # First Second Paternal Maternal
+                            name_patterns["compound_first_names"] += 1
+                            name_patterns["double_surnames"] += 1
+                        elif len(name_parts) == 3:
+                            # Check if second name exists (basic heuristic)
+                            if country in COUNTRY_DATA and any(name_parts[1] in COUNTRY_DATA[country].get('second_names', [])):
+                                name_patterns["compound_first_names"] += 1
+                            else:
+                                name_patterns["double_surnames"] += 1
+                        else:
+                            name_patterns["simple_names"] += 1
+                        break
+                
+                # Count entities
+                for start, end, label in entities:
+                    entity_counts[label] = entity_counts.get(label, 0) + 1
+                
+                # Analyze noise patterns
+                if include_noise:
+                    if "  " in sentence:  # Double spaces
+                        noise_patterns["spacing"] = noise_patterns.get("spacing", 0) + 1
+                    if "Av." in sentence or "Tel." in sentence:  # Abbreviations
+                        noise_patterns["abbreviations"] = noise_patterns.get("abbreviations", 0) + 1
+                    if " ." in sentence or " :" in sentence:  # Punctuation spacing
+                        noise_patterns["punctuation"] = noise_patterns.get("punctuation", 0) + 1
+                
+                # Extract individual entities for detailed view
+                entity_details = []
+                for start, end, label in entities:
+                    entity_text = sentence[start:end]
+                    entity_details.append(f"{label}: '{entity_text}'")
+                
+                row_data = {
+                    "ID": len(all_data) + 1,
+                    "Country": country.upper(),
+                    "Generated_Text": sentence,
+                    "Entity_Count": len(entities),
+                    "Entities": " | ".join(entity_details),
+                    "Has_Noise": include_noise,
+                    "Text_Length": len(sentence)
+                }
+                
+                all_data.append(row_data)
+                country_data.append(row_data)
+                
+            except Exception as e:
+                continue
+        
+        country_stats[country.upper()] = len(country_data)
+    
+    # Create Excel workbook
+    print(f"📝 Creating Excel workbook with {len(all_data)} examples...")
+    
+    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+        # 1. Summary Sheet
+        summary_data = {
+            "Metric": [
+                "Total Examples Generated",
+                "Countries Included",
+                "Examples per Country",
+                "Noise Generation Enabled",
+                "Noise Level",
+                "Average Text Length",
+                "Average Entities per Example",
+                "Unique Entity Types",
+                "Compound First Names",
+                "Double Surnames", 
+                "Simple Names",
+                "Generation Date"
+            ],
+            "Value": [
+                len(all_data),
+                ", ".join([c.upper() for c in supported_countries]),
+                examples_per_country,
+                "Yes" if include_noise else "No",
+                f"{noise_level:.2f}" if include_noise else "N/A",
+                f"{sum(d['Text_Length'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
+                f"{sum(d['Entity_Count'] for d in all_data)/len(all_data):.1f}" if all_data else "0",
+                len(entity_counts),
+                name_patterns["compound_first_names"],
+                name_patterns["double_surnames"],
+                name_patterns["simple_names"],
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ]
+        }
+        
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_excel(writer, sheet_name='Summary', index=False)
+        
+        # 2. All Data Sheet
+        all_data_df = pd.DataFrame(all_data)
+        all_data_df.to_excel(writer, sheet_name='All_Data', index=False)
+        
+        # 3. By Country Sheet
+        country_summary = []
+        for country in supported_countries:
+            country_examples = [d for d in all_data if d["Country"] == country.upper()]
+            has_second_names = sum(1 for d in country_examples if d["Entity_Count"] > 0)  # Simplified metric
+            has_second_surnames = sum(1 for d in country_examples if d["Entity_Count"] > 0)  # Simplified metric
+            
+            country_summary.append({
+                "Country": country.upper(),
+                "Total_Examples": len(country_examples),
+                "Avg_Text_Length": f"{sum(d['Text_Length'] for d in country_examples)/len(country_examples):.1f}" if country_examples else "0",
+                "Avg_Entities_Per_Example": f"{sum(d['Entity_Count'] for d in country_examples)/len(country_examples):.1f}" if country_examples else "0"
+            })
+        
+        country_df = pd.DataFrame(country_summary)
+        country_df.to_excel(writer, sheet_name='By_Country', index=False)
+        
+        # 4. Name Pattern Analysis Sheet
+        name_analysis = [
+            {"Pattern_Type": "Compound First Names", "Count": name_patterns["compound_first_names"], "Percentage": f"{name_patterns['compound_first_names']/len(all_data)*100:.1f}%" if all_data else "0%"},
+            {"Pattern_Type": "Double Surnames", "Count": name_patterns["double_surnames"], "Percentage": f"{name_patterns['double_surnames']/len(all_data)*100:.1f}%" if all_data else "0%"},
+            {"Pattern_Type": "Simple Names", "Count": name_patterns["simple_names"], "Percentage": f"{name_patterns['simple_names']/len(all_data)*100:.1f}%" if all_data else "0%"}
+        ]
+        
+        name_df = pd.DataFrame(name_analysis)
+        name_df.to_excel(writer, sheet_name='Name_Analysis', index=False)
+        
+        # 5. Entity Statistics Sheet
+        entity_descriptions = {
+            "CUSTOMER_NAME": "Full customer names with country conventions",
+            "ID_NUMBER": "Country-specific ID numbers (RUT, CURP, CPF, etc.)",
+            "ADDRESS": "Complete addresses with country-specific formats",
+            "PHONE": "Country-specific phone numbers",
+            "EMAIL": "Email addresses with country domains",
+            "AMOUNT": "Monetary amounts with local currencies",
+            "SEQ_NUMBER": "Sequential reference numbers"
+        }
+        
+        entity_analysis = []
+        for entity_type, count in entity_counts.items():
+            percentage = (count / len(all_data) * 100) if all_data else 0
+            entity_analysis.append({
+                "Entity_Type": entity_type,
+                "Count": count,
+                "Percentage": f"{percentage:.1f}%",
+                "Description": entity_descriptions.get(entity_type, "Entity type")
+            })
+        
+        entity_df = pd.DataFrame(entity_analysis)
+        entity_df.to_excel(writer, sheet_name='Entity_Statistics', index=False)
+        
+        # 6. Noise Analysis Sheet (if noise is enabled)
+        if include_noise and noise_patterns:
+            noise_analysis = []
+            for pattern_type, count in noise_patterns.items():
+                noise_analysis.append({
+                    "Noise_Pattern": pattern_type,
+                    "Occurrences": count,
+                    "Percentage": f"{(count / len(all_data) * 100):.1f}%" if all_data else "0%"
+                })
+            
+            noise_df = pd.DataFrame(noise_analysis)
+            noise_df.to_excel(writer, sheet_name='Noise_Analysis', index=False)
+    
+    print(f"✅ Excel file created successfully: {output_file}")
+    print(f"📊 Generated {len(all_data)} examples across {len(supported_countries)} countries")
+    print(f"🏷️  Entity distribution: {dict(sorted(entity_counts.items()))}")
+    print(f"🌎 Country distribution: {country_stats}")
+    print(f"📋 Multi-country naming patterns: {name_patterns}")
+    
+    if include_noise:
+        print(f"🎭 Noise patterns detected: {noise_patterns}")
+    
+    print(f"\n📖 Excel sheets created:")
+    print(f"  • Summary - Overview statistics")
+    print(f"  • All_Data - Complete generated data")
+    print(f"  • By_Country - Analysis by country")
+    print(f"  • Name_Analysis - Multi-country naming pattern analysis")
+    print(f"  • Entity_Statistics - Entity type distribution")
+    if include_noise:
+        print(f"  • Noise_Analysis - Noise pattern analysis")
+
 # -----------------
 # Command-Line Interface and Main Functions
 # -----------------
