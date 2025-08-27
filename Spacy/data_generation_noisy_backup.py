@@ -1398,37 +1398,11 @@ def get_sentence_templates(country: str) -> List[str]:
     """
     if country == "chile":
         return [
-            # Standard formal templates
             "El cliente {} con RUT {} reside en {}, {}. Teléfono: {} / Email: {}. Monto: {} - Referencia: {}.",
             "Registro de {} con cédula {}. Ubicado en {}, {}. Contacto: {} / {}. Transacción: {} - ID: {}.",
             "Cliente {} identificado con RUT {}. Dirección: {}, {}. Contacto telefónico: {}. Correo: {}. Valor: {} - Número: {}.",
             "Datos del cliente: {} (RUT: {}). Domicilio: {}, {}. Tel: {} / {}. Monto operación: {} - Folio: {}.",
-            "Información de {} con RUT {}. Vive en {}, {}. Fono: {} - Email: {}. Cantidad: {} - Serie: {}.",
-            
-            # Banking/Financial document styles
-            "CLIENTE: {} RUT: {} DIRECCIÓN: {} {} TEL: {} EMAIL: {} MONTO: {} N°: {}",
-            "{}|{}|{} {}|{}|{}|{}|{}",
-            "Nombre:{} ID:{} Dom:{},{} Cont:{}/{} Val:{} Ref:{}",
-            
-            # Insurance/Financial services
-            "Asegurado {} CI {} ubicado en {} {} contacto {} correo {} prima {} póliza {}",
-            "Beneficiario {} RUT {} residencia {} {} tel {} email {} beneficio {} código {}",
-            
-            # System/database output
-            "[{}][{}][{} {}][{}][{}][{}][{}]",
-            "USER:{} DOC:{} ADDR:{} {} PHONE:{} MAIL:{} AMT:{} REF:{}",
-            
-            # OCR corrupted styles
-            "{} R.U.T {} {} {} {} {} {} {}",
-            "{}  {}  {}  {}    {}  {}   {}   {}",
-            "Cliente:{} Doc:{} Dir:{},{} Tel:{} Email:{} Valor:{} N:{}",
-            
-            # Short abbreviated forms
-            "{} ({}) {} {} {} {} {} {}",
-            "CLI:{} RUT:{} DIR:{} {} TEL:{} @ {} $:{} #:{}",
-            
-            # Mixed format (common in real documents)
-            "Sr(a). {} C.I. {} domiciliado en {} {} teléfono {} e-mail {} por {} folio {}"
+            "Información de {} con RUT {}. Vive en {}, {}. Fono: {} - Email: {}. Cantidad: {} - Serie: {}."
         ]
     elif country == "mexico":
         return [
@@ -1735,8 +1709,7 @@ def generate_example_with_custom_mode(country: str = "chile",
                    - 'personal_id': NAME + ID_NUMBER (boost ID_NUMBER frequency)
                    - 'address_focused': NAME + ADDRESS (boost ADDRESS frequency)
                    - 'contact_only': NAME + PHONE + EMAIL
-                   - 'financial_heavy': AMOUNT + SEQ_NUMBER + DATE (enhanced for OCR tables with multiple sequences)
-                   - 'table_heavy': Multiple AMOUNTS + SEQ_NUMBERS + DATES (simulates OCR table rows)
+                   - 'financial_heavy': AMOUNT + SEQ_NUMBER + DATE (financial-focused, no names)
                    - 'minimal_entities': NAME + ID + PHONE (basic)
         include_noise (bool): Whether to add noise
         noise_level (float): Noise intensity (0.0-1.0)
@@ -1836,207 +1809,26 @@ def generate_example_with_custom_mode(country: str = "chile",
         entity_mappings.extend([(phone, "PHONE_NUMBER"), (email, "EMAIL")])
         
     elif mode == "financial_heavy":
-        # Enhanced AMOUNT + SEQ_NUMBER + DATE mode with OCR table patterns
+        # AMOUNT + SEQ_NUMBER + DATE (removed NAME to focus on financial entities)
+        amount = generate_amount(country)
+        sequence = generate_sequence_number(country)
+        date = generate_date(country)
         
-        # 30% chance for multi-sequence table patterns (common in OCR tables)
-        if random.random() < 0.3:
-            # Generate multiple sequences for table-like patterns
-            amount1 = generate_amount(country)
-            amount2 = generate_amount(country)
-            sequence1 = generate_sequence_number(country)
-            sequence2 = generate_sequence_number(country)
-            date1 = generate_date(country)
-            date2 = generate_date(country)
-            
-            table_templates = [
-                # OCR table row patterns (multiple entries)
-                "{} {} {} {} {} {}",
-                "{} | {} | {} | {} | {} | {}",
-                "{}    {}    {}    {}    {}    {}",
-                "{} - {} - {} - {} - {} - {}",
-                "{}  {}  {}  {}  {}  {}",
-                "{}/{}/{} {}/{}/{}",
-                "{}||{}||{} {}||{}||{}",
-                "{} #{} {} {} #{} {}",
-                "PAGO {} N°{} {} PAGO {} N°{} {}",
-                "TXN:{} REF:{} DT:{} TXN:{} REF:{} DT:{}",
-                
-                # Table column headers corrupted by OCR
-                "MONTO CODIGO FECHA {} {} {} {} {} {}",
-                "AMT REF DATE {} {} {} {} {} {}",
-                "VALOR NUM DIA {} {} {} {} {} {}",
-                "$ N° FECHA {} {} {} {} {} {}",
-                
-                # Corrupted table separators
-                "{} .{} .{} .{} .{} .{}",
-                "{}   {}   {}   {}   {}   {}",
-                "{} I {} I {} I {} I {} I {}",
-                "{} l {} l {} l {} l {} l {}",  # OCR confuses | with l
-                
-                # Financial statement patterns
-                "DEBE {} HAB {} REF {} DEBE {} HAB {} REF {}",
-                "DEB:{} CRED:{} N°:{} DEB:{} CRED:{} N°:{}",
-                "CARGO {} ABONO {} ID {} CARGO {} ABONO {} ID {}",
-                
-                # Multi-row invoice patterns
-                "ITEM {} QTY {} DATE {} ITEM {} QTY {} DATE {}",
-                "PROD:{} COD:{} FEC:{} PROD:{} COD:{} FEC:{}",
-                "LIN {} REF {} {} LIN {} REF {} {}"
-            ]
-            
-            template = random.choice(table_templates)
-            sentence = template.format(amount1, sequence1, date1, amount2, sequence2, date2)
-            entity_mappings = [
-                (amount1, "AMOUNT"), (sequence1, "SEQ_NUMBER"), (date1, "DATE"),
-                (amount2, "AMOUNT"), (sequence2, "SEQ_NUMBER"), (date2, "DATE")
-            ]
-            
-        else:
-            # Standard single-entry patterns (70% of cases)
-            amount = generate_amount(country)
-            sequence = generate_sequence_number(country)
-            date = generate_date(country)
-            
-            templates = [
-                # Standard formal templates
-                "Transacción por {} - N° {} - Fecha: {}.",
-                "Pago de {} folio {} realizado el {}.",
-                "Monto {} referencia {} procesado {}.",
-                "Operación {} código {} fecha {}.",
-                "Valor {} N° {} del {}.",
-                "Importe {} ref. {} - {}.",
-                "Total {} serie {} en fecha {}.",
-                "Cantidad {} número {} con fecha {}.",
-                "Suma {} código {} registrada el {}.",
-                "Factura {} N° {} emitida {}.",
-                
-                # Banking/Financial institution templates
-                "Transferencia {} REF {} FECHA {}",
-                "DÉBITO {} N°{} {}",
-                "CRÉDITO {} TXN:{} {}",
-                "RETIRO {} DOC:{} {}",
-                "DEPÓSITO {} #{}  {}",
-                
-                # Invoice/Receipt styles
-                "TOTAL $ {} COMPROBANTE {} {}",
-                "SUBTOTAL {} NUM {} DIA {}",
-                "IMPORTE {} TICKET {} {}",
-                "PRECIO {} BOLETA {} {}",
-                
-                # Transaction log styles
-                "{} | {} | {}",
-                "AMT:{} REF:{} DATE:{}",
-                "$ {} #{} {}",
-                "VALOR:{} COD:{} {}",
-                
-                # Error/corrupted document styles (OCR simulation)
-                "{}  N.{}  {}",
-                "{}    {} {}",
-                "$ {} - {}  {}",
-                "TOT {} N{}{}",
-                
-                # System/database output styles
-                "Amount: {} | Ref: {} | Date: {}",
-                "[{}] [{}] [{}]",
-                "{}||{}||{}",
-                "Val={} Id={} Dt={}",
-                
-                # Mixed language patterns (common in Latin America)
-                "AMOUNT {} NUM {} {}",
-                "QTY {} REF {} {}",
-                "SUM {} ID {} {}",
-                
-                # NEW: Sequential number heavy patterns (for tables with lots of seq_numbers)
-                "N°{} {} {} N°{} {} {}",
-                "REF{} AMT:{} DT:{} REF{} AMT:{} DT:{}",
-                "#{} ${} {} #{} ${} {}",
-                "COD{} VAL{} FEC{} COD{} VAL{} FEC{}",
-                "ID:{} TOTAL:{} WHEN:{}",
-                "SEQ:{} MONTO:{} DIA:{}",
-                "NUM:{} VALOR:{} FECHA:{}",
-                
-                # OCR corruption patterns with heavy sequences
-                "{}N{}{} {}N{}{} {}N{}{}",
-                "{} .{} .{} .{} .{} .{} .{} .{}",
-                "{}|{}|{} {}|{}|{} {}|{}|{}",
-                
-                # Table fragment patterns (single row from table)
-                "FILA {} COL {} FECHA {}",
-                "ROW {} VAL {} DATE {}",
-                "LIN:{} AMT:{} DT:{}"
-            ]
-            
-            # Sometimes add extra sequence numbers for sequence-heavy patterns
-            if random.random() < 0.4:
-                extra_seq = generate_sequence_number(country)
-                enhanced_templates = [
-                    "{} REF:{} ALT:{} {}",
-                    "{} N°{} SUBN°{} {}",
-                    "MONTO:{} ID:{} SUB:{} FECHA:{}",
-                    "VAL:{} COD:{} REF:{} DT:{}",
-                    "{} #{} @{} {}",
-                    "AMT:{} MAIN:{} AUX:{} DATE:{}"
-                ]
-                if random.random() < 0.5:
-                    template = random.choice(enhanced_templates)
-                    sentence = template.format(amount, sequence, extra_seq, date)
-                    entity_mappings = [(amount, "AMOUNT"), (sequence, "SEQ_NUMBER"), (extra_seq, "SEQ_NUMBER"), (date, "DATE")]
-                else:
-                    template = random.choice(templates)
-                    sentence = template.format(amount, sequence, date)
-                    entity_mappings = [(amount, "AMOUNT"), (sequence, "SEQ_NUMBER"), (date, "DATE")]
-            else:
-                template = random.choice(templates)
-                sentence = template.format(amount, sequence, date)
-                entity_mappings = [(amount, "AMOUNT"), (sequence, "SEQ_NUMBER"), (date, "DATE")]
-        
-    elif mode == "table_heavy":
-        # Table-optimized mode: Multiple AMOUNTS + SEQ_NUMBERS + DATES (OCR table simulation)
-        # Generates 3-6 entities per line to simulate table rows
-        num_entries = random.randint(3, 6)
-        amounts = [generate_amount(country) for _ in range(num_entries)]
-        sequences = [generate_sequence_number(country) for _ in range(num_entries)]
-        dates = [generate_date(country) for _ in range(num_entries)]
-        
-        # OCR table row patterns with many sequences
-        table_patterns = [
-            # Pipe-separated table (most common OCR pattern)
-            " | ".join([f"{a} | {s} | {d}" for a, s, d in zip(amounts, sequences, dates)]),
-            
-            # Space-separated table (OCR loses formatting)
-            "  ".join([f"{a}  {s}  {d}" for a, s, d in zip(amounts, sequences, dates)]),
-            
-            # Tab-like spacing (irregular OCR)
-            "    ".join([f"{a}    {s}    {d}" for a, s, d in zip(amounts, sequences, dates)]),
-            
-            # Comma-separated (CSV-like)
-            ", ".join([f"{a}, {s}, {d}" for a, s, d in zip(amounts, sequences, dates)]),
-            
-            # Mixed separators (corrupted OCR)
-            " | ".join([f"{a} - {s} - {d}" for a, s, d in zip(amounts, sequences, dates)]),
-            
-            # Column headers + data (OCR includes headers)
-            f"MONTO CODIGO FECHA " + "  ".join([f"{a} {s} {d}" for a, s, d in zip(amounts, sequences, dates)]),
-            
-            # Numbered rows (table with row numbers)
-            " | ".join([f"{i+1}. {a} #{s} {d}" for i, (a, s, d) in enumerate(zip(amounts, sequences, dates))]),
-            
-            # Database-style output
-            " || ".join([f"{a}||{s}||{d}" for a, s, d in zip(amounts, sequences, dates)]),
-            
-            # Financial statement style
-            " ".join([f"DEB:{a} REF:{s} DT:{d}" for a, s, d in zip(amounts, sequences, dates)]),
-            
-            # Invoice line items
-            " | ".join([f"ITEM:{s} VAL:{a} FEC:{d}" for a, s, d in zip(amounts, sequences, dates)])
+        templates = [
+            "Transacción por {} - N° {} - Fecha: {}.",
+            "Pago de {} folio {} realizado el {}.",
+            "Monto {} referencia {} procesado {}.",
+            "Operación {} código {} fecha {}.",
+            "Valor {} N° {} del {}.",
+            "Importe {} ref. {} - {}.",
+            "Total {} serie {} en fecha {}.",
+            "Cantidad {} número {} con fecha {}.",
+            "Suma {} código {} registrada el {}.",
+            "Factura {} N° {} emitida {}."
         ]
-        
-        sentence = random.choice(table_patterns)
-        
-        # Create entity mappings for all amounts, sequences, and dates
-        entity_mappings = []
-        for a, s, d in zip(amounts, sequences, dates):
-            entity_mappings.extend([(a, "AMOUNT"), (s, "SEQ_NUMBER"), (d, "DATE")])
+        template = random.choice(templates)
+        sentence = template.format(amount, sequence, date)
+        entity_mappings = [(amount, "AMOUNT"), (sequence, "SEQ_NUMBER"), (date, "DATE")]
         
     elif mode == "minimal_entities":
         # NAME + ID + PHONE (basic coverage)

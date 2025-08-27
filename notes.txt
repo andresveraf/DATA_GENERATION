@@ -47,3 +47,14 @@ print(f'SEQ_NUMBER success: {train[\"entity_distribution\"][\"SEQ_NUMBER\"]/trai
 
 # to test the noise
 python3 simple_ocr_test.py "m RESULTADOS PROCESOS CARGA POLIZAS S Archivo Ventana Registros '; S :0 .. 5, [ RESULTADOS PROCESOS CARGA POLIZAS Compañla:l MetLife_Chile Usuario: CRODRIGUEZ Sistema: ENDOSOS RENTA VITALICIA Fecha: 12032015 [08:59:02 Control Tipo Campos Polizas - -mr rorm. -- Poliza Campo Error Fecha Transacción Hora Transacción Autor Terminal Las 079276-A Tot_Errores _ 0[12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI 079277-A Tot_Errores 0[12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI 079278-A[Tot_Erores 012/03/2015 08:57:08 CRODRIGUEZ [XP_SCUMPLI 079279-A Tot_Errores _ 0)12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI 079280-A Tot_Errores 0[12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI 079281-A Tot_Errores 0[12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI 079282-A Tot_Errores 0)12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI 079283-A Tot_Errores _ 0)12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI 079284-A Tot_Errores _ 0)12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI PROC_AAJErrs_detect.0)12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI Polizas_OK.9 12/03/2015 08:57:08 CRODRIGUEZ XP_SCUMPLI Ready Z"  
+
+
+
+
+cd /Users/andresverafigueroa/Documents/GitHub/DATA_GENERATION/Spacy
+
+python3 data_generation_noisy.py --mode create-dataset --country all \
+  --train-size 100000 --dev-size 20000 \
+  --custom-weights '{"financial_heavy":50,"table_heavy":15,"personal_id":10,"address_focused":10,"contact_only":10,"full":5}' \
+  --noise --noise-level 0.4
+
