@@ -10,8 +10,7 @@ python3 data_generation_noisy.py --mode create-dataset --country all \
 Or: 
 # Menos ruido = mejor preservación de entidades
 python3 data_generation_noisy.py --mode create-dataset --country all \
-  --train-size 250000 --dev-size 50000 --noise --noise-level 0.
-
+  --train-size 250000 --dev-size 50000 
 
 # 1. Crear configuración de spaCy (si no la tienes)
 python3 -m spacy init config config.cfg --lang es --pipeline ner --optimize efficiency
@@ -54,7 +53,11 @@ python3 simple_ocr_test.py "m RESULTADOS PROCESOS CARGA POLIZAS S Archivo Ventan
 cd /Users/andresverafigueroa/Documents/GitHub/DATA_GENERATION/Spacy
 
 python3 data_generation_noisy.py --mode create-dataset --country all \
-  --train-size 100000 --dev-size 20000 \
+  --train-size 10000 --dev-size 2000 \
   --custom-weights '{"financial_heavy":50,"table_heavy":15,"personal_id":10,"address_focused":10,"contact_only":10,"full":5}' \
-  --noise --noise-level 0.4
+  --noise --noise-level 0.15
 
+
+cd /Users/andresverafigueroa/Documents/GitHub/DATA_GENERATION/Spacy && python3 data_generation_noisy.py --mode create-dataset --country chile --train-size 10000 --dev-size 2000 --noise --noise-level 0.15
+
+cd /Users/andresverafigueroa/Documents/GitHub/DATA_GENERATION/Spacy && python3 data_generation_noisy.py --mode create-dataset --country chile --train-size 10000 --dev-size 2000

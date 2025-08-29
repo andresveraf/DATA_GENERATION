@@ -1794,45 +1794,37 @@ def safe_format_template(template: str, entity_data: List[str]) -> str:
     Returns:
         str: Formatted string
     """
-    placeholder_count = template.count('{}')
-    # Pad entity_data if too short
-    if len(entity_data) < placeholder_count:
-        # Pad with empty string (or could use last value, or a dummy value)
-        entity_data = entity_data + [''] * (placeholder_count - len(entity_data))
-    # Truncate if too many
-    entity_data = entity_data[:placeholder_count]
     try:
         return template.format(*entity_data)
     except IndexError:
-        # If still error, fallback to joining entities
-        return ' '.join(entity_data)
+        # Fallback: truncate entity data to match placeholder count
+        placeholder_count = template.count('{}')
+        return template.format(*entity_data[:placeholder_count])
 
-def format_template_with_entities(template: str, entity_data: List[str]) -> Tuple[str, List[str]]:
+def shuffle_template_entities(template: str, entity_data: List[str], 
+                            shuffle_probability: float = 0.3) -> Tuple[str, List[str]]:
     """
-    Format template with entity data without shuffling for reliable entity detection.
+    Shuffle entity positions in templates to reduce overfitting and improve model generalization.
     
-    This function provides consistent entity positioning which improves entity detection
-    reliability and reduces failed spans. Template diversity comes from having multiple
-    template variations rather than position shuffling.
+    This function helps prevent the model from learning fixed entity positions by randomly
+    rearranging entities while maintaining template coherence. Only applies shuffling
+    based on probability to maintain some consistency.
     
     Args:
         template (str): Template string with {} placeholders
         entity_data (List[str]): List of entity values to insert
+        shuffle_probability (float): Probability of applying shuffling (0.0-1.0)
         
     Returns:
-        Tuple[str, List[str]]: Template and entity list (unchanged for consistency)
+        Tuple[str, List[str]]: Shuffled template and corresponding entity list
     """
-    # Return entities in original order for reliable detection
-    return template, entity_data
+    if random.random() > shuffle_probability or len(entity_data) < 3:
+        return template, entity_data
     
-    # OLD SHUFFLING CODE DISABLED:
-    # if random.random() > shuffle_probability or len(entity_data) < 3:
-    #     return template, entity_data
-    # 
-    # # Count placeholders in template
-    # placeholder_count = template.count('{}')
-    # if placeholder_count != len(entity_data):
-    #     return template, entity_data  # Mismatch, return original
+    # Count placeholders in template
+    placeholder_count = template.count('{}')
+    if placeholder_count != len(entity_data):
+        return template, entity_data  # Mismatch, return original
     
     # Create shuffling strategies based on template structure
     shuffle_strategies = [
@@ -1956,7 +1948,7 @@ def apply_country_noise(sentence: str, country: str, noise_level: float) -> str:
     
     return sentence
 
-def generate_example_with_noise(country: str = "chile", include_noise: bool = False, noise_level: float = 0.0) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
+def generate_example_with_noise(country: str = "chile", include_noise: bool = True, noise_level: float = 0.2) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
     """
     Generate a complete customer data example for any supported country with controlled noise and guaranteed zero E1010 errors.
     
@@ -2018,59 +2010,71 @@ def generate_example_with_noise(country: str = "chile", include_noise: bool = Fa
     # Country-specific sentence templates with cultural appropriateness
     templates = get_sentence_templates(country)
     
-    # CRITICAL FIX: Filter out problematic templates that cause detection issues
-    # Prefer simpler templates with consistent placeholder counts
-    simple_templates = []
-    for template in templates:
-        placeholder_count = template.count('{}')
-        # Only use templates with 8 placeholders (complete name format) for better consistency
-        if placeholder_count == 8:
-            simple_templates.append(template)
-    
-    # If no simple templates found, fallback to all templates
-    if not simple_templates:
-        simple_templates = templates
-    
-    # Select random template from filtered list
-    template = random.choice(simple_templates)
+    # Select random template
+    template = random.choice(templates)
     
     # Count placeholders to determine entity format needed
     placeholder_count = template.count('{}')
     
-    # CRITICAL FIX: Always use complete name format for consistency
-    # This eliminates the split name vs complete name detection mismatch
-    entity_data = [
-        complete_full_name, id_number, address, city, 
-        phone, email, amount, sequence
-    ]
+    # Prepare entity data based on template placeholder count
+    if placeholder_count == 9:
+        # Template expects split name (first_name, last_name, id, address, city, phone, email, amount, sequence)
+        entity_data = [
+            full_name_part, complete_surname, id_number, address, city, 
+            phone, email, amount, sequence
+        ]
+    else:
+        # Template expects complete name (8 placeholders: full_name, id, address, city, phone, email, amount, sequence)
+        entity_data = [
+            complete_full_name, id_number, address, city, 
+            phone, email, amount, sequence
+        ]
     
-    # Pad or truncate entity data to match template requirements
-    while len(entity_data) < placeholder_count:
-        entity_data.append(sequence)  # Duplicate sequence if needed
-    entity_data = entity_data[:placeholder_count]  # Truncate if too many
+    # Apply entity shuffling to reduce overfitting (30% probability)
+    template, shuffled_entities = shuffle_template_entities(template, entity_data, 0.3)
     
-    # Format template with entity data (no shuffling for reliable entity detection)
-    template, formatted_entities = format_template_with_entities(template, entity_data)
-    
-    # Format template with entity data
-    sentence = safe_format_template(template, formatted_entities)
+    # Format template with shuffled entity data - Add error handling
+    try:
+        sentence = safe_format_template(template, shuffled_entities)
+    except IndexError as e:
+        # Fallback: if still mismatch, use complete name format
+        entity_data = [
+            complete_full_name, id_number, address, city, 
+            phone, email, amount, sequence
+        ]
+        template, shuffled_entities = shuffle_template_entities(template, entity_data, 0.3)
+        sentence = safe_format_template(template, shuffled_entities)
     
     # Apply country-specific noise if requested
     if include_noise:
         sentence = apply_country_noise(sentence, country, noise_level)
     
-    # Create entity mappings for detection (using formatted entities in original order)
-    # Map actual entities used in sentence for detection
-    entity_mappings = [
-        (formatted_entities[0], "CUSTOMER_NAME"),        # Full customer name (always first)
-        (formatted_entities[1], "ID_NUMBER"),            # Country-specific ID (always second)
-        (formatted_entities[2], "ADDRESS"),              # Street address (always third)
-        (formatted_entities[3], "ADDRESS"),              # City (always fourth)
-        (formatted_entities[4], "PHONE_NUMBER"),         # Phone number (always fifth)
-        (formatted_entities[5], "EMAIL"),                # Email address (always sixth)
-        (formatted_entities[6], "AMOUNT"),               # Amount with currency (always seventh)
-        (formatted_entities[7], "SEQ_NUMBER")            # Sequential number (always eighth)
-    ]
+    # CRITICAL: Advanced entity detection with E1010 conflict resolution
+    # NOTE: Use original entity values for detection - always use complete names for consistency
+    if placeholder_count == 9:
+        # For split name templates, we still want to identify the complete name as one entity
+        entity_mappings = [
+            (complete_full_name, "CUSTOMER_NAME"),        # Full customer name
+            (id_number, "ID_NUMBER"),                     # Country-specific ID
+            (address, "ADDRESS"),                         # Street address
+            (city, "ADDRESS"),                            # City
+            (phone, "PHONE_NUMBER"),                      # Phone number
+            (email, "EMAIL"),                             # Email address
+            (amount, "AMOUNT"),                           # Amount with currency
+            (sequence, "SEQ_NUMBER")                      # Sequential number
+        ]
+    else:
+        # Standard entity mappings for complete name templates
+        entity_mappings = [
+            (complete_full_name, "CUSTOMER_NAME"),        # Full customer name
+            (id_number, "ID_NUMBER"),                     # Country-specific ID
+            (address, "ADDRESS"),                         # Street address
+            (city, "ADDRESS"),                            # City
+            (phone, "PHONE_NUMBER"),                      # Phone number
+            (email, "EMAIL"),                             # Email address
+            (amount, "AMOUNT"),                           # Amount with currency
+            (sequence, "SEQ_NUMBER")                      # Sequential number
+        ]
     
     # IMPROVED ENTITY DETECTION WITH CONFLICT RESOLUTION (E1010 FIX)
     used_positions = set()
@@ -2097,301 +2101,7 @@ def generate_example_with_noise(country: str = "chile", include_noise: bool = Fa
             if start_pos != -1:
                 entity_text = normalized_entity  # Use the normalized version
         
-        # Strategy 3: Case-insensitive search for names
-        if start_pos == -1 and label == "CUSTOMER_NAME":
-            import re
-            # Try case-insensitive matching for names
-            pattern = re.escape(entity_text)
-            match = re.search(pattern, sentence, re.IGNORECASE)
-            if match:
-                start_pos = match.start()
-                entity_text = match.group()  # Use the actual matched text
-        
-        # Strategy 3.5: Enhanced ADDRESS detection with flexible matching
-        if start_pos == -1 and label == "ADDRESS":
-            import re
-            # ADDRESS entities often have variations in spacing, punctuation, abbreviations
-            # Try multiple approaches for ADDRESS detection
-            
-            # Approach 1: Normalize spaces and try exact match
-            normalized_entity = ' '.join(entity_text.split())
-            normalized_sentence = ' '.join(sentence.split())
-            start_pos = normalized_sentence.find(normalized_entity)
-            if start_pos != -1:
-                # Find the original position in the non-normalized sentence
-                words_before = normalized_sentence[:start_pos].split()
-                char_pos = 0
-                for word in words_before:
-                    char_pos = sentence.find(word, char_pos) + len(word)
-                    while char_pos < len(sentence) and sentence[char_pos] in ' \t\n':
-                        char_pos += 1
-                if char_pos < len(sentence):
-                    start_pos = char_pos
-                    entity_text = normalized_entity
-            
-            # Approach 2: Try pattern matching with abbreviations and variations
-            if start_pos == -1:
-                # Create flexible pattern for address matching
-                address_pattern = re.escape(entity_text)
-                
-                # Handle common address abbreviations and variations
-                address_replacements = {
-                    r'Avenida': r'(Avenida|Av\.?)',
-                    r'Calle': r'(Calle|C\.?)',
-                    r'Pasaje': r'(Pasaje|Pje\.?|Psje\.?)',
-                    r'Boulevard': r'(Boulevard|Blvd\.?)',
-                    r'Carrera': r'(Carrera|Cra\.?)',
-                    r'Diagonal': r'(Diagonal|Diag\.?)',
-                    r'Circunvalar': r'(Circunvalar|Circunv\.?)',
-                    r'Norte': r'(Norte|N\.?)',
-                    r'Sur': r'(Sur|S\.?)',
-                    r'Este': r'(Este|E\.?)',
-                    r'Oeste': r'(Oeste|O\.?)',
-                    r'Número': r'(Número|Núm\.?|No\.?|N°\.?|#)',
-                    r'\s+': r'\s+',  # Flexible spacing
-                }
-                
-                for full_form, pattern_replacement in address_replacements.items():
-                    address_pattern = re.sub(full_form, pattern_replacement, address_pattern, flags=re.IGNORECASE)
-                
-                # Allow for flexible spacing and punctuation
-                address_pattern = re.sub(r'\\s\+', r'\\s*', address_pattern)
-                address_pattern = re.sub(r'\\,', r'\\s*,\\s*', address_pattern)
-                address_pattern = re.sub(r'\\.', r'\\s*\\.\\s*', address_pattern)
-                
-                match = re.search(address_pattern, sentence, re.IGNORECASE)
-                if match:
-                    start_pos = match.start()
-                    entity_text = match.group()
-            
-            # Approach 3: Try partial address matching (street name without number)
-            if start_pos == -1:
-                # Split address into components and try to match street name
-                address_parts = entity_text.split()
-                if len(address_parts) >= 2:
-                    # Try to find the street name part (usually first 1-3 words)
-                    for num_words in range(min(3, len(address_parts)), 0, -1):
-                        street_part = ' '.join(address_parts[:num_words])
-                        if len(street_part) > 3:  # Minimum meaningful length
-                            street_pos = sentence.find(street_part)
-                            if street_pos != -1:
-                                # Extend the match to include following number if present
-                                extended_end = street_pos + len(street_part)
-                                while extended_end < len(sentence) and sentence[extended_end] in ' \t':
-                                    extended_end += 1
-                                # Look for number after street name
-                                number_match = re.match(r'\d+', sentence[extended_end:])
-                                if number_match:
-                                    extended_end += number_match.end()
-                                start_pos = street_pos
-                                entity_text = sentence[start_pos:extended_end].strip()
-                                break
-        
-        # Strategy 3.6: Enhanced ID_NUMBER detection with country-specific patterns
-        if start_pos == -1 and label == "ID_NUMBER":
-            import re
-            # ID numbers often have specific formats per country
-            # Try pattern-based matching for different ID formats
-            
-            # Chile RUT patterns: 12.345.678-9, 12345678-9, 12345678-K
-            if 'chile' in sentence.lower() or re.search(r'\bRUT\b', sentence, re.IGNORECASE):
-                rut_patterns = [
-                    r'\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b',  # With dots
-                    r'\b\d{7,8}-[\dKk]\b',                # Without dots
-                    r'\b\d{7,8}[\dKk]\b',                 # No separator
-                ]
-                for pattern in rut_patterns:
-                    match = re.search(pattern, sentence)
-                    if match:
-                        start_pos = match.start()
-                        entity_text = match.group()
-                        break
-            
-            # Mexico CURP patterns: MAGR850315MDFNRL09
-            elif 'mexico' in sentence.lower() or re.search(r'\bCURP\b', sentence, re.IGNORECASE):
-                curp_pattern = r'\b[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]{2}\b'
-                match = re.search(curp_pattern, sentence, re.IGNORECASE)
-                if match:
-                    start_pos = match.start()
-                    entity_text = match.group()
-            
-            # Mexico RFC patterns: MAGR850315ABC
-            elif re.search(r'\bRFC\b', sentence, re.IGNORECASE):
-                rfc_pattern = r'\b[A-Z]{4}\d{6}[A-Z0-9]{3}\b'
-                match = re.search(rfc_pattern, sentence, re.IGNORECASE)
-                if match:
-                    start_pos = match.start()
-                    entity_text = match.group()
-            
-            # Brazil CPF patterns: 123.456.789-10, 12345678910
-            elif 'brazil' in sentence.lower() or re.search(r'\bCPF\b', sentence, re.IGNORECASE):
-                cpf_patterns = [
-                    r'\b\d{3}\.\d{3}\.\d{3}-\d{2}\b',   # With dots and dash
-                    r'\b\d{11}\b',                      # Plain numbers
-                ]
-                for pattern in cpf_patterns:
-                    match = re.search(pattern, sentence)
-                    if match:
-                        start_pos = match.start()
-                        entity_text = match.group()
-                        break
-            
-            # Uruguay CI patterns: 1.234.567-8, 12345678
-            elif 'uruguay' in sentence.lower() or re.search(r'\bCI\b|\bcédula\b', sentence, re.IGNORECASE):
-                ci_patterns = [
-                    r'\b\d{1,2}\.\d{3}\.\d{3}-\d\b',    # With dots and dash
-                    r'\b\d{7,8}\b',                     # Plain numbers
-                ]
-                for pattern in ci_patterns:
-                    match = re.search(pattern, sentence)
-                    if match:
-                        start_pos = match.start()
-                        entity_text = match.group()
-                        break
-            
-            # Generic ID patterns if no country-specific match
-            if start_pos == -1:
-                # Try flexible matching with the original entity
-                id_pattern = re.escape(entity_text)
-                # Allow for spacing variations in ID numbers
-                id_pattern = re.sub(r'\\\.', r'\\s*\\.\\s*', id_pattern)
-                id_pattern = re.sub(r'\\-', r'\\s*-\\s*', id_pattern)
-                id_pattern = re.sub(r'\\\s', r'\\s*', id_pattern)
-                
-                match = re.search(id_pattern, sentence, re.IGNORECASE)
-                if match:
-                    start_pos = match.start()
-                    entity_text = match.group()
-        
-        # Strategy 3.7: Enhanced PHONE_NUMBER detection with flexible patterns
-        if start_pos == -1 and label == "PHONE_NUMBER":
-            import re
-            # Phone numbers have many format variations, try flexible matching
-            
-            # First try the original entity with flexible formatting
-            phone_pattern = re.escape(entity_text)
-            # Allow flexible spacing and separators
-            phone_pattern = re.sub(r'\\s+', r'\\s*', phone_pattern)
-            phone_pattern = re.sub(r'\\-', r'[\\s\\-]*', phone_pattern)
-            phone_pattern = re.sub(r'\\\(', r'\\s*\\(?', phone_pattern)
-            phone_pattern = re.sub(r'\\\)', r'\\)?\\s*', phone_pattern)
-            phone_pattern = re.sub(r'\\\+', r'\\+?', phone_pattern)
-            
-            match = re.search(phone_pattern, sentence)
-            if match:
-                start_pos = match.start()
-                entity_text = match.group()
-            
-            # If still not found, try common phone patterns
-            if start_pos == -1:
-                phone_patterns = [
-                    r'\+?56\s?[2-9]\s?\d{4}\s?\d{4}',  # Chilean format
-                    r'\+?52\s?[1-9]\s?\d{3}\s?\d{4}',  # Mexican format  
-                    r'\+?55\s?\d{2}\s?\d{4}\s?\d{4}',  # Brazilian format
-                    r'\+?598\s?[2-9]\s?\d{3}\s?\d{4}', # Uruguayan format
-                    r'\(?[0-9]{2,4}\)?\s?[0-9]{3,4}[\s\-]?[0-9]{3,4}',  # Generic
-                    r'\+?[0-9]{1,4}[\s\-]?[0-9]{2,4}[\s\-]?[0-9]{3,4}[\s\-]?[0-9]{3,4}',  # International
-                ]
-                
-                for pattern in phone_patterns:
-                    matches = re.finditer(pattern, sentence)
-                    for match in matches:
-                        candidate_start, candidate_end = match.span()
-                        candidate_range = set(range(candidate_start, candidate_end))
-                        if not candidate_range.intersection(used_positions):
-                            # Validate it looks like a phone number
-                            candidate_text = match.group()
-                            digit_count = sum(c.isdigit() for c in candidate_text)
-                            if digit_count >= 7:  # Minimum digits for a valid phone
-                                start_pos = candidate_start
-                                entity_text = candidate_text
-                                break
-                    if start_pos != -1:
-                        break
-        
-        # Strategy 3.8: Enhanced EMAIL detection with flexible patterns
-        if start_pos == -1 and label == "EMAIL":
-            import re
-            # Email patterns with common variations
-            
-            # First try exact match with the original entity
-            email_pattern = re.escape(entity_text)
-            # Allow some spacing variations (though rare in emails)
-            email_pattern = re.sub(r'\\s+', r'\\s*', email_pattern)
-            
-            match = re.search(email_pattern, sentence, re.IGNORECASE)
-            if match:
-                start_pos = match.start()
-                entity_text = match.group()
-            
-            # If still not found, try generic email patterns
-            if start_pos == -1:
-                email_patterns = [
-                    r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b',  # Standard email
-                    r'\b[a-zA-Z0-9._%+-]+\s*@\s*[a-zA-Z0-9.-]+\.\s*[a-zA-Z]{2,}\b',  # With spaces
-                ]
-                
-                for pattern in email_patterns:
-                    matches = re.finditer(pattern, sentence, re.IGNORECASE)
-                    for match in matches:
-                        candidate_start, candidate_end = match.span()
-                        candidate_range = set(range(candidate_start, candidate_end))
-                        if not candidate_range.intersection(used_positions):
-                            candidate_text = match.group()
-                            # Basic email validation
-                            if '@' in candidate_text and '.' in candidate_text.split('@')[1]:
-                                start_pos = candidate_start
-                                entity_text = candidate_text
-                                break
-                    if start_pos != -1:
-                        break
-        
-        # Strategy 3.9: Enhanced AMOUNT detection with currency patterns
-        if start_pos == -1 and label == "AMOUNT":
-            import re
-            # Amount patterns with various currency formats
-            
-            # First try the original entity with flexible formatting
-            amount_pattern = re.escape(entity_text)
-            # Allow spacing around currency symbols and dots/commas
-            amount_pattern = re.sub(r'\\\$', r'\\s*\\$\\s*', amount_pattern)
-            amount_pattern = re.sub(r'\\\.', r'[\\.,]', amount_pattern)  # Dot or comma
-            amount_pattern = re.sub(r'\\,', r'[\\.,]', amount_pattern)   # Comma or dot
-            amount_pattern = re.sub(r'\\s+', r'\\s*', amount_pattern)
-            
-            match = re.search(amount_pattern, sentence)
-            if match:
-                start_pos = match.start()
-                entity_text = match.group()
-            
-            # If still not found, try currency-specific patterns
-            if start_pos == -1:
-                currency_patterns = [
-                    r'\$\s*[\d,.]+',           # Dollar amounts
-                    r'R\$\s*[\d,.]+',          # Brazilian Real
-                    r'[\d,.]+\s*pesos?',       # Peso amounts
-                    r'[\d,.]+\s*reais?',       # Real amounts
-                    r'[\d,.]+\s*\$',           # Amount + dollar symbol
-                    r'[\d,.]{3,}',             # Generic number patterns (3+ digits)
-                ]
-                
-                for pattern in currency_patterns:
-                    matches = re.finditer(pattern, sentence, re.IGNORECASE)
-                    for match in matches:
-                        candidate_start, candidate_end = match.span()
-                        candidate_range = set(range(candidate_start, candidate_end))
-                        if not candidate_range.intersection(used_positions):
-                            candidate_text = match.group()
-                            # Validate it contains enough digits to be an amount
-                            digit_count = sum(c.isdigit() for c in candidate_text)
-                            if digit_count >= 2:  # At least 2 digits
-                                start_pos = candidate_start
-                                entity_text = candidate_text
-                                break
-                    if start_pos != -1:
-                        break
-        
-        # Strategy 4: For SEQ_NUMBER, try pattern matching if still not found
+        # Strategy 3: For SEQ_NUMBER, try pattern matching if still not found
         if start_pos == -1 and label == "SEQ_NUMBER":
             import re
             # Create a pattern that allows for minor spacing variations
@@ -2492,90 +2202,6 @@ def generate_example_with_noise(country: str = "chile", include_noise: bool = Fa
                 entities.append((start_pos, end_pos, label))
                 used_positions.update(position_range)
                 # Entity successfully added without conflicts
-        else:
-            # FALLBACK: If entity still not found, try partial matching for critical entities
-            if label in ["CUSTOMER_NAME", "ID_NUMBER", "ADDRESS"]:
-                # For names, try finding individual words
-                if label == "CUSTOMER_NAME":
-                    words = entity_text.split()
-                    for word in words:
-                        if len(word) > 2:  # Skip very short words
-                            word_pos = sentence.find(word)
-                            if word_pos != -1:
-                                word_end = word_pos + len(word)
-                                word_range = set(range(word_pos, word_end))
-                                if not word_range.intersection(used_positions):
-                                    entities.append((word_pos, word_end, label))
-                                    used_positions.update(word_range)
-                                    break  # Only take the first match to avoid duplicates
-                
-                # For ID_NUMBER, try relaxed pattern matching
-                elif label == "ID_NUMBER":
-                    import re
-                    # Try to find any sequence that looks like an ID in the sentence
-                    id_candidates = []
-                    
-                    # Look for various ID patterns
-                    patterns = [
-                        r'\b\d{7,12}[\dKk]?\b',           # Numeric sequences
-                        r'\b\d{1,3}[\.\-\s]\d{3}[\.\-\s]\d{3}[\.\-\s][\dKk]\b',  # Formatted IDs
-                        r'\b[A-Z]{4}\d{6}[A-Z0-9]{2,6}\b', # CURP/RFC style
-                        r'\b\d+[\-\.]\d+[\-\.]?[\dKk]?\b',  # General dash/dot patterns
-                    ]
-                    
-                    for pattern in patterns:
-                        matches = re.finditer(pattern, sentence, re.IGNORECASE)
-                        for match in matches:
-                            candidate_start, candidate_end = match.span()
-                            candidate_range = set(range(candidate_start, candidate_end))
-                            if not candidate_range.intersection(used_positions):
-                                # Additional validation: ensure it's not obviously another entity type
-                                candidate_text = match.group()
-                                if not (re.match(r'^\+?[\d\s\-()]{8,}$', candidate_text) or  # Phone
-                                       '@' in candidate_text or                              # Email
-                                       '$' in candidate_text):                               # Amount
-                                    id_candidates.append((candidate_start, candidate_end, candidate_text))
-                    
-                    # Choose the best ID candidate (prefer longer, more complex patterns)
-                    if id_candidates:
-                        best_candidate = max(id_candidates, key=lambda x: (len(x[2]), x[2].count('-'), x[2].count('.')))
-                        start_pos, end_pos = best_candidate[0], best_candidate[1]
-                        entities.append((start_pos, end_pos, label))
-                        used_positions.update(set(range(start_pos, end_pos)))
-                
-                # For ADDRESS, try component-based matching
-                elif label == "ADDRESS":
-                    import re
-                    # Try to find address-like patterns in the sentence
-                    address_candidates = []
-                    
-                    # Look for street patterns with numbers
-                    street_patterns = [
-                        r'\b(Av|Avenida|Calle|C|Pasaje|Pje|Blvd|Boulevard)\.?\s+[A-ZÁÉÍÓÚÜÑa-záéíóúüñ\s]+\s+\d+\b',
-                        r'\b[A-ZÁÉÍÓÚÜÑa-záéíóúüñ\s]{3,}\s+\d{1,4}\b',  # Street name + number
-                        r'\b\d{1,4}\s+[A-ZÁÉÍÓÚÜÑa-záéíóúüñ\s]{3,}\b',  # Number + street name
-                    ]
-                    
-                    for pattern in street_patterns:
-                        matches = re.finditer(pattern, sentence, re.IGNORECASE)
-                        for match in matches:
-                            candidate_start, candidate_end = match.span()
-                            candidate_range = set(range(candidate_start, candidate_end))
-                            if not candidate_range.intersection(used_positions):
-                                candidate_text = match.group().strip()
-                                # Validate it's not obviously another entity type
-                                if not (re.match(r'^\+?[\d\s\-()]{8,}$', candidate_text) or  # Phone
-                                       '@' in candidate_text or                              # Email
-                                       '$' in candidate_text or                              # Amount
-                                       re.match(r'^\d+$', candidate_text)):                 # Pure number
-                                    address_candidates.append((candidate_start, candidate_end, candidate_text))
-                    
-                    # Choose the best address candidate (prefer longer, more complex)
-                    if address_candidates:
-                        best_candidate = max(address_candidates, key=lambda x: len(x[2]))
-                        start_pos, end_pos = best_candidate[0], best_candidate[1]
-                        entities.append((start_pos, end_pos, label))
-                        used_positions.update(set(range(start_pos, end_pos)))
     
     # Sort entities by start position for consistent output
     entities.sort(key=lambda x: x[0])
@@ -2587,8 +2213,8 @@ def generate_example_with_noise(country: str = "chile", include_noise: bool = Fa
 
 def generate_example_with_custom_mode(country: str = "chile", 
                                     mode: str = "full",
-                                    include_noise: bool = False, 
-                                    noise_level: float = 0.0) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
+                                    include_noise: bool = True, 
+                                    noise_level: float = 0.2) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
     """
     Generate a complete customer data example with specific mode control for entity balance.
     
@@ -2643,43 +2269,8 @@ def generate_example_with_custom_mode(country: str = "chile",
     entity_mappings = [(complete_full_name, "CUSTOMER_NAME")]
     
     if mode == "full":
-        # All entities - generate using improved detection logic instead of calling generate_example_with_noise
-        id_number = generate_id(country)
-        street = random.choice(country_info['streets'])
-        street_number = random.randint(10, 999)
-        address = f"{street} {street_number}"
-        city = random.choice(country_info['cities'])
-        phone = generate_phone(country)
-        email = generate_email(first_name.split()[0], last_name, country)
-        amount = generate_amount(country)
-        sequence = generate_sequence_number(country)
-        
-        # Create full entity set with all possible entities
-        templates = [
-            "Cliente {} con documento {} domiciliado en {}, {} teléfono {} email {} por monto {} referencia {}.",
-            "El usuario {} ID {} vive en {}, {} contacto {} correo {} transacción {} código {}.",
-            "Registro de {} documento {} dirección {}, {} fono {} mail {} valor {} N° {}.",
-            "Información: {} identificación {} ubicado en {}, {} cel {} @ {} cantidad {} serie {}.",
-            "Datos de {} con {} residencia {}, {} tel {} e-mail {} importe {} folio {}.",
-            "Cliente {} (ID: {}) domicilio {}, {} teléfono {} correo {} monto {} ref {}.",
-            "Usuario {} documento {} con dirección {}, {} contacto {} email {} suma {} número {}.",
-            "Persona {} identificada con {} vive en {}, {} llamar {} escribir {} total {} código {}."
-        ]
-        template = random.choice(templates)
-        
-        # CRITICAL FIX: Disable shuffling to reduce failed spans
-        entity_data = [complete_full_name, id_number, address, city, phone, email, amount, sequence]
-        sentence = safe_format_template(template, entity_data)
-        
-        entity_mappings.extend([
-            (id_number, "ID_NUMBER"), 
-            (address, "ADDRESS"), 
-            (city, "ADDRESS"),
-            (phone, "PHONE_NUMBER"), 
-            (email, "EMAIL"), 
-            (amount, "AMOUNT"), 
-            (sequence, "SEQ_NUMBER")
-        ])
+        # All entities - use existing generate_example_with_noise
+        return generate_example_with_noise(country, include_noise, noise_level)
         
     elif mode == "personal_id":
         # Focus on NAME + ID_NUMBER to boost ID_NUMBER frequency
@@ -2696,9 +2287,10 @@ def generate_example_with_custom_mode(country: str = "chile",
         ]
         template = random.choice(templates)
         
-        # CRITICAL FIX: Disable shuffling to reduce failed spans
+        # Apply entity shuffling to reduce overfitting
         entity_data = [complete_full_name, id_number]
-        sentence = safe_format_template(template, entity_data)
+        template, shuffled_entities = shuffle_template_entities(template, entity_data, 0.3)
+        sentence = safe_format_template(template, shuffled_entities)
         
         entity_mappings.append((id_number, "ID_NUMBER"))
         
@@ -2721,9 +2313,10 @@ def generate_example_with_custom_mode(country: str = "chile",
         ]
         template = random.choice(templates)
         
-        # CRITICAL FIX: Disable shuffling to reduce failed spans
+        # Apply entity shuffling to reduce overfitting
         entity_data = [complete_full_name, address, city]
-        sentence = safe_format_template(template, entity_data)
+        template, shuffled_entities = shuffle_template_entities(template, entity_data, 0.3)
+        sentence = safe_format_template(template, shuffled_entities)
         
         entity_mappings.extend([(address, "ADDRESS"), (city, "ADDRESS")])
         
@@ -2744,9 +2337,10 @@ def generate_example_with_custom_mode(country: str = "chile",
         ]
         template = random.choice(templates)
         
-        # CRITICAL FIX: Disable shuffling to reduce failed spans
+        # Apply entity shuffling to reduce overfitting
         entity_data = [complete_full_name, phone, email]
-        sentence = safe_format_template(template, entity_data)
+        template, shuffled_entities = shuffle_template_entities(template, entity_data, 0.3)
+        sentence = safe_format_template(template, shuffled_entities)
         
         entity_mappings.extend([(phone, "PHONE_NUMBER"), (email, "EMAIL")])
         
@@ -2927,25 +2521,28 @@ def generate_example_with_custom_mode(country: str = "chile",
                 if random.random() < 0.5:
                     template = random.choice(enhanced_templates)
                     
-                    # CRITICAL FIX: Disable shuffling to reduce failed spans
+                    # Apply entity shuffling for enhanced templates
                     entity_data = [amount, sequence, extra_seq, date]
-                    sentence = safe_format_template(template, entity_data)
+                    template, shuffled_entities = shuffle_template_entities(template, entity_data, 0.3)
+                    sentence = safe_format_template(template, shuffled_entities)
                     
                     entity_mappings = [(amount, "AMOUNT"), (sequence, "SEQ_NUMBER"), (extra_seq, "SEQ_NUMBER"), (date, "DATE")]
                 else:
                     template = random.choice(templates)
                     
-                    # CRITICAL FIX: Disable shuffling to reduce failed spans
+                    # Apply entity shuffling for standard templates
                     entity_data = [amount, sequence, date]
-                    sentence = safe_format_template(template, entity_data)
+                    template, shuffled_entities = shuffle_template_entities(template, entity_data, 0.3)
+                    sentence = safe_format_template(template, shuffled_entities)
                     
                     entity_mappings = [(amount, "AMOUNT"), (sequence, "SEQ_NUMBER"), (date, "DATE")]
             else:
                 template = random.choice(templates)
                 
-                # CRITICAL FIX: Disable shuffling to reduce failed spans
+                # Apply entity shuffling for standard templates
                 entity_data = [amount, sequence, date]
-                sentence = safe_format_template(template, entity_data)
+                template, shuffled_entities = shuffle_template_entities(template, entity_data, 0.3)
+                sentence = safe_format_template(template, shuffled_entities)
                 
                 entity_mappings = [(amount, "AMOUNT"), (sequence, "SEQ_NUMBER"), (date, "DATE")]
         
@@ -3061,9 +2658,10 @@ def generate_example_with_custom_mode(country: str = "chile",
         ]
         template = random.choice(templates)
         
-        # CRITICAL FIX: Disable shuffling to reduce failed spans
+        # Apply entity shuffling to reduce overfitting
         entity_data = [complete_full_name, id_number, phone]
-        sentence = safe_format_template(template, entity_data)
+        template, shuffled_entities = shuffle_template_entities(template, entity_data, 0.3)
+        sentence = safe_format_template(template, shuffled_entities)
         
         entity_mappings.extend([(id_number, "ID_NUMBER"), (phone, "PHONE_NUMBER")])
         
@@ -3075,7 +2673,7 @@ def generate_example_with_custom_mode(country: str = "chile",
     if include_noise:
         sentence = apply_country_noise(sentence, country, noise_level)
     
-    # Enhanced entity detection with conflict resolution (simplified approach)
+    # Entity detection with conflict resolution
     used_positions = set()
     entities = []
     sorted_mappings = sorted(entity_mappings, key=lambda x: len(x[0]), reverse=True)
@@ -3083,229 +2681,8 @@ def generate_example_with_custom_mode(country: str = "chile",
     for entity_text, label in sorted_mappings:
         if not entity_text.strip():
             continue
-        
-        start_pos = -1
-        
-        # Strategy 1: Direct exact match
+            
         start_pos = sentence.find(entity_text)
-        
-        # Strategy 2: Case-insensitive search for names
-        if start_pos == -1 and label == "CUSTOMER_NAME":
-            import re
-            pattern = re.escape(entity_text)
-            match = re.search(pattern, sentence, re.IGNORECASE)
-            if match:
-                start_pos = match.start()
-                entity_text = match.group()  # Use the actual matched text
-        
-        # Strategy 3: Normalized spacing match
-        if start_pos == -1:
-            normalized_entity = ' '.join(entity_text.split())
-            normalized_sentence = ' '.join(sentence.split())
-            norm_pos = normalized_sentence.find(normalized_entity)
-            if norm_pos != -1:
-                # Find the original position in the non-normalized sentence
-                words_before = normalized_sentence[:norm_pos].split()
-                char_pos = 0
-                for word in words_before:
-                    char_pos = sentence.find(word, char_pos)
-                    if char_pos != -1:
-                        char_pos += len(word)
-                        while char_pos < len(sentence) and sentence[char_pos] in ' \t\n':
-                            char_pos += 1
-                if char_pos < len(sentence):
-                    start_pos = char_pos
-                    entity_text = normalized_entity
-        
-        # Strategy 4: Pattern-based matching for specific entity types
-        if start_pos == -1:
-            import re
-            
-            if label == "ID_NUMBER":
-                # Try pattern-based matching for ID numbers
-                id_patterns = [
-                    r'\b\d{7,8}-[\dKk]\b',                # Chile RUT
-                    r'\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b',  # Chile RUT with dots
-                    r'\b[A-Z]{4}\d{6}[A-Z0-9]{2,6}\b',    # Mexico CURP/RFC
-                    r'\b\d{3}\.\d{3}\.\d{3}-\d{2}\b',     # Brazil CPF
-                    r'\b\d{8}-\d\b',                      # Uruguay CI
-                    r'\b\d{7,12}[\dKk]?\b',               # General numeric
-                ]
-                for pattern in id_patterns:
-                    matches = re.finditer(pattern, sentence, re.IGNORECASE)
-                    for match in matches:
-                        candidate_start, candidate_end = match.span()
-                        candidate_range = set(range(candidate_start, candidate_end))
-                        if not candidate_range.intersection(used_positions):
-                            start_pos = candidate_start
-                            entity_text = match.group()
-                            break
-                    if start_pos != -1:
-                        break
-            
-            elif label == "PHONE_NUMBER":
-                # Try pattern-based matching for phone numbers
-                phone_patterns = [
-                    r'\+?[\d\s\-\(\)]{8,15}',
-                    r'\b\d{2,4}[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b',
-                ]
-                for pattern in phone_patterns:
-                    matches = re.finditer(pattern, sentence)
-                    for match in matches:
-                        candidate_start, candidate_end = match.span()
-                        candidate_range = set(range(candidate_start, candidate_end))
-                        if not candidate_range.intersection(used_positions):
-                            candidate_text = match.group()
-                            if re.match(r'^[\+\d\s\-\(\)]{8,}$', candidate_text):
-                                start_pos = candidate_start
-                                entity_text = candidate_text
-                                break
-                    if start_pos != -1:
-                        break
-            
-            elif label == "EMAIL":
-                # Try pattern-based matching for emails
-                email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-                match = re.search(email_pattern, sentence, re.IGNORECASE)
-                if match:
-                    candidate_start, candidate_end = match.span()
-                    candidate_range = set(range(candidate_start, candidate_end))
-                    if not candidate_range.intersection(used_positions):
-                        start_pos = candidate_start
-                        entity_text = match.group()
-            
-            elif label == "ADDRESS":
-                # Try partial address matching
-                address_parts = entity_text.split()
-                if len(address_parts) >= 2:
-                    for num_words in range(min(3, len(address_parts)), 0, -1):
-                        street_part = ' '.join(address_parts[:num_words])
-                        if len(street_part) > 3:
-                            street_pos = sentence.find(street_part)
-                            if street_pos != -1:
-                                candidate_range = set(range(street_pos, street_pos + len(street_part)))
-                                if not candidate_range.intersection(used_positions):
-                                    start_pos = street_pos
-                                    entity_text = street_part
-                                    break
-            
-            elif label == "AMOUNT":
-                # Try pattern-based matching for amounts
-                amount_patterns = [
-                    r'\$[\d,\.]+',                           # Dollar amounts
-                    r'\b\d{1,3}(?:\.\d{3})*(?:,\d{2})?\b',  # European format
-                    r'\b\d{1,3}(?:,\d{3})*(?:\.\d{2})?\b',  # US format
-                    r'\b\d+[\.,]\d+\b',                     # General decimal
-                    r'\b\d+\b',                             # Simple numbers
-                ]
-                for pattern in amount_patterns:
-                    matches = re.finditer(pattern, sentence)
-                    for match in matches:
-                        candidate_start, candidate_end = match.span()
-                        candidate_range = set(range(candidate_start, candidate_end))
-                        if not candidate_range.intersection(used_positions):
-                            candidate_text = match.group()
-                            # Validate it looks like an amount (contains digits)
-                            if re.search(r'\d', candidate_text):
-                                start_pos = candidate_start
-                                entity_text = candidate_text
-                                break
-                    if start_pos != -1:
-                        break
-            
-            elif label == "DATE":
-                # Try pattern-based matching for dates
-                date_patterns = [
-                    r'\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b',    # DD/MM/YYYY or DD-MM-YYYY
-                    r'\b\d{2,4}[-/]\d{1,2}[-/]\d{1,2}\b',    # YYYY/MM/DD or YYYY-MM-DD
-                    r'\b\d{1,2}\s+de\s+\w+\s+de\s+\d{4}\b', # DD de MONTH de YYYY
-                    r'\b\w+\s+\d{1,2},?\s+\d{4}\b',         # MONTH DD, YYYY
-                    r'\b\d{1,2}\.\d{1,2}\.\d{2,4}\b',       # DD.MM.YYYY
-                ]
-                for pattern in date_patterns:
-                    matches = re.finditer(pattern, sentence, re.IGNORECASE)
-                    for match in matches:
-                        candidate_start, candidate_end = match.span()
-                        candidate_range = set(range(candidate_start, candidate_end))
-                        if not candidate_range.intersection(used_positions):
-                            start_pos = candidate_start
-                            entity_text = match.group()
-                            break
-                    if start_pos != -1:
-                        break
-            
-            elif label == "SEQ_NUMBER":
-                # Try pattern-based matching for sequence numbers
-                seq_patterns = [
-                    r'\b\d{3,12}\b',                         # General numeric sequences
-                    r'\b[A-Z]{1,3}\d{3,8}\b',               # Letter-number combinations
-                    r'\b\d+[-_]\d+\b',                      # Dash/underscore separated
-                    r'\b[A-Z]\d+[A-Z]?\b',                  # Letter-number-letter patterns
-                    r'#\d+',                                 # Hash-prefixed numbers
-                    r'N°\s*\d+',                            # N° prefixed numbers
-                ]
-                for pattern in seq_patterns:
-                    matches = re.finditer(pattern, sentence, re.IGNORECASE)
-                    for match in matches:
-                        candidate_start, candidate_end = match.span()
-                        candidate_range = set(range(candidate_start, candidate_end))
-                        if not candidate_range.intersection(used_positions):
-                            candidate_text = match.group()
-                            # Validate it contains digits and looks like a sequence
-                            if re.search(r'\d', candidate_text) and len(candidate_text) >= 2:
-                                start_pos = candidate_start
-                                entity_text = candidate_text
-                                break
-                    if start_pos != -1:
-                        break
-        
-        # Strategy 5: Final aggressive fallback - try to find any reasonable match
-        if start_pos == -1:
-            # For any entity type, try to find similar patterns in the sentence
-            entity_words = entity_text.split()
-            if len(entity_words) > 0:
-                # Try to find the first word of the entity
-                first_word = entity_words[0]
-                if len(first_word) > 2:  # Skip very short words
-                    word_pos = sentence.find(first_word)
-                    if word_pos != -1:
-                        word_end = word_pos + len(first_word)
-                        # Try to extend the match
-                        extended_end = word_end
-                        for i in range(1, len(entity_words)):
-                            next_word = entity_words[i]
-                            # Look for the next word nearby
-                            remaining_text = sentence[extended_end:extended_end + 50]  # Look ahead 50 chars
-                            next_pos = remaining_text.find(next_word)
-                            if next_pos != -1 and next_pos <= 10:  # Within 10 characters
-                                extended_end = extended_end + next_pos + len(next_word)
-                            else:
-                                break
-                        
-                        candidate_range = set(range(word_pos, extended_end))
-                        if not candidate_range.intersection(used_positions):
-                            start_pos = word_pos
-                            entity_text = sentence[word_pos:extended_end].strip()
-        
-        # Strategy 6: Last resort - partial match for critical entities
-        if start_pos == -1 and label in ["CUSTOMER_NAME", "ID_NUMBER", "ADDRESS", "PHONE_NUMBER", "EMAIL"]:
-            # Try to find any substantial substring
-            if len(entity_text) > 4:
-                # Try substrings of decreasing length
-                for substr_len in range(len(entity_text), 3, -1):
-                    for start_idx in range(len(entity_text) - substr_len + 1):
-                        substr = entity_text[start_idx:start_idx + substr_len]
-                        if len(substr.strip()) > 3:
-                            substr_pos = sentence.find(substr)
-                            if substr_pos != -1:
-                                candidate_range = set(range(substr_pos, substr_pos + len(substr)))
-                                if not candidate_range.intersection(used_positions):
-                                    start_pos = substr_pos
-                                    entity_text = substr
-                                    break
-                    if start_pos != -1:
-                        break
-        
         if start_pos != -1:
             end_pos = start_pos + len(entity_text)
             position_range = set(range(start_pos, end_pos))
@@ -3391,14 +2768,14 @@ def merge_consecutive_address_entities(text: str, entities: List[Tuple[int, int,
     merged_entities.sort(key=lambda x: x[0])
     return merged_entities
 
-def generate_chilean_example_with_noise(include_noise: bool = False, noise_level: float = 0.0) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
+def generate_chilean_example_with_noise(include_noise: bool = True, noise_level: float = 0.2) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
     """
     Generate a complete Chilean customer data example with controlled noise and guaranteed zero E1010 errors.
     (Backwards compatibility wrapper)
     """
     return generate_example_with_noise("chile", include_noise, noise_level)
 
-def generate_multiple_chilean_examples_with_noise(count: int = 5, include_noise: bool = False, noise_level: float = 0.0) -> List[Tuple[str, Dict[str, List[Tuple[int, int, str]]]]]:
+def generate_multiple_chilean_examples_with_noise(count: int = 5, include_noise: bool = True, noise_level: float = 0.2) -> List[Tuple[str, Dict[str, List[Tuple[int, int, str]]]]]:
     """
     Generate multiple Chilean customer data examples with controlled noise for training or testing.
     
@@ -3419,7 +2796,7 @@ def generate_multiple_chilean_examples_with_noise(count: int = 5, include_noise:
         examples.append(generate_chilean_example_with_noise(include_noise, noise_level))
     return examples
 
-def generate_chilean_example_with_mode(mode: str = "full", include_noise: bool = False) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
+def generate_chilean_example_with_mode(mode: str = "full", include_noise: bool = True) -> Tuple[str, Dict[str, List[Tuple[int, int, str]]]]:
     """
     Generate Chilean customer data example with specific complexity mode and optional noise.
     
@@ -3502,8 +2879,8 @@ def generate_chilean_example_with_mode(mode: str = "full", include_noise: bool =
 
 def make_chilean_docbin_with_noise(n_total: int = 100000, 
                                  balance: bool = True, 
-                                 include_noise: bool = False,
-                                 noise_level: float = 0.0,
+                                 include_noise: bool = True,
+                                 noise_level: float = 0.2,
                                  output_dir: str = ".") -> Tuple[DocBin, Dict[str, int]]:
     """
     Create a spaCy DocBin for Chilean NER training with controlled noise and guaranteed zero E1010 errors.
@@ -3768,8 +3145,8 @@ def create_chilean_training_dataset_with_noise(train_size: int = 80000,
 
 def create_multi_country_training_dataset_with_noise(train_size: int = 80000, 
                                                    dev_size: int = 20000, 
-                                                   include_noise: bool = False,
-                                                   noise_level: float = 0.0,
+                                                   include_noise: bool = True,
+                                                   noise_level: float = 0.2,
                                                    output_dir: str = "output",
                                                    mode_weights: Dict[str, int] = None) -> None:
     """
@@ -5328,9 +4705,9 @@ def demonstrate_multi_country_functionality_with_noise():
     parser.add_argument("--excel-examples", type=int, default=100, help="Number of examples for Excel export")
     parser.add_argument("--excel-file", type=str, default="multi_country_customer_data_review_noisy.xlsx", help="Excel output filename")
     parser.add_argument("--json-examples", type=int, default=100, help="Number of examples for JSON export")
-    parser.add_argument("--noise", action="store_true", default=False, help="Enable noise generation")
+    parser.add_argument("--noise", action="store_true", default=True, help="Enable noise generation")
     parser.add_argument("--no-noise", action="store_true", help="Disable noise generation")
-    parser.add_argument("--noise-level", type=float, default=0.0, help="Noise intensity (0.0-1.0) - Enhanced for OCR simulation")
+    parser.add_argument("--noise-level", type=float, default=0.2, help="Noise intensity (0.0-1.0) - Enhanced for OCR simulation")
     
     # NEW: Entity balance configuration
     parser.add_argument("--entity-balance", choices=["default", "address-boost", "id-boost", "contact-boost", "minimal-financial"], 
