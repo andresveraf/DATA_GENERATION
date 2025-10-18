@@ -36,14 +36,11 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-# Import all the new components
+# Import components
 from database.database_manager import DatabaseManager
 from generators.negative_examples_generator import NegativeExamplesGenerator
 from corruption.extreme_corruption import ExtremeCorruptionGenerator
 from dataset_composer.mixed_dataset_generator import MixedDatasetGenerator, DatasetComposition
-
-# Import existing components (would need to be adapted)
-# from Spacy.data_generation_noisy import PII_Generator  # Placeholder
 
 # Configure logging
 logging.basicConfig(
