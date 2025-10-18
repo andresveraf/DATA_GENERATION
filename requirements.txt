@@ -1,0 +1,45 @@
+# Core dependencies for DATA_GENERATION project
+# =============================================
+
+# Data manipulation and analysis
+pandas>=1.5.0
+numpy>=1.21.0
+
+# NLP and ML libraries
+spacy>=3.4.0
+nltk>=3.8.0
+transformers>=4.20.0
+datasets>=2.0.0
+torch>=1.12.0
+
+# Text processing and tokenization
+tokenizers>=0.13.0
+
+# Database
+sqlite3  # Built-in with Python
+
+# Data export and serialization
+openpyxl>=3.0.0  # For Excel export
+xlsxwriter>=3.0.0
+
+# Utilities
+tqdm>=4.64.0
+click>=8.0.0
+colorama>=0.4.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Optional: spaCy language models (install separately)
+# python -m spacy download es_core_news_sm
+# python -m spacy download pt_core_news_sm
+
+# Optional: Additional NLP libraries for advanced augmentation
+# textaugment>=1.3.0
+# nlpaug>=1.1.0
+
+# Installation instructions:
+# pip install -r requirements.txt
+# python -m spacy download es_core_news_sm
+# python -m spacy download pt_core_news_sm

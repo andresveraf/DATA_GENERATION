@@ -1,221 +1,552 @@
 # Enhanced Multi-Country PII Data Generation System
 
-![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![spaCy](https://img.shields.io/badge/spaCy-3.4+-green.svg)
-![Transformers](https://img.shields.io/badge/transformers-4.21+-orange.svg)
-![SQLite](https://img.shields.io/badge/SQLite-3.0+-blue.svg)
-![Status](https://img.shields.io/badge/status-production--ready-brightgreen.svg)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![NER Training](https://img.shields.io/badge/NER-Training%20Ready-green.svg)](https://spacy.io/)
 
-**🚀 NEWLY ENHANCED SYSTEM** - Complete system for generating realistic PII training data with OCR noise simulation for NER model training. Now includes **5 major new features**: Database Integration, Negative Examples, Extreme Corruption, Mixed Datasets, and Optimized spaCy Configurations.
+A comprehensive system for generating realistic PII (Personally Identifiable Information) training data for Named Entity Recognition (NER) models, specifically designed for Latin American countries with advanced augmentation capabilities.
 
-## 🎯 Project Structure
+## 🚀 Key Features
+
+### Core Capabilities
+- **Multi-Country Support**: Chile, Mexico, Brazil, and Uruguay with country-specific localization
+- **Enhanced PII Types**: 12+ entity types including traditional and location-based PII
+- **Advanced NLP Augmentation**: NLTK-based synonym replacement and noise injection
+- **Zero Overlapping Entities**: Guaranteed E1010 error prevention
+- **Dual Framework Support**: Both spaCy and Transformers training formats
+- **Database Integration**: Comprehensive tracking and statistics
+- **Quality Validation**: Built-in variety and quality metrics
+
+### Supported Entity Types
+| Entity Type | Description | Examples |
+|-------------|-------------|----------|
+| `CUSTOMER_NAME` | Full names with country conventions | Juan Pérez González |
+| `ID_NUMBER` | Country-specific ID formats | RUT, CURP, CPF, Cédula |
+| `ADDRESS` | Street addresses and cities | Av. Providencia 123 |
+| `PHONE_NUMBER` | Country-specific phone formats | +56 9 1234 5678 |
+| `EMAIL` | Email addresses with local domains | juan.perez@empresa.cl |
+| `AMOUNT` | Monetary amounts with currency | $150.000 CLP |
+| `SEQ_NUMBER` | Sequential reference numbers | REF-12345, FOLIO-67890 |
+| `DATE` | Various date formats | 15/08/2024, 15 de agosto de 2024 |
+| `DIRECTION` | Direction/orientation info | hacia el centro, rumbo norte |
+| `LOCATION` | Specific location references | Mall Plaza Norte, Aeropuerto SCL |
+| `POSTAL_CODE` | Postal/zip codes | 7500000, 01000 |
+| `REGION` | Region/state information | Región Metropolitana |
+
+### Supported Countries
+- 🇨🇱 **Chile**: RUT format, +56 phones, CLP currency, Chilean Spanish
+- 🇲🇽 **Mexico**: CURP/RFC formats, +52 phones, MXN currency, Mexican Spanish  
+- 🇧🇷 **Brazil**: CPF/RG formats, +55 phones, BRL currency, Portuguese
+- 🇺🇾 **Uruguay**: Cédula format, +598 phones, UYU currency, Uruguayan Spanish
+
+## 📁 Project Structure
 
 ```
 DATA_GENERATION/
-├── 📂 Spacy/                        # spaCy-based NER solution (OPTIMIZED)
-│   ├── data_generation_noisy.py     # Main spaCy data generator (96.8% success rate)
-│   ├── config.cfg                   # ✨ NEW: Optimized spaCy training configuration
-│   ├── test_*.py                     # Testing and validation tools
-│   ├── models/                       # Trained spaCy models
-│   └── output/                       # Generated .spacy datasets
-├── 📂 Transformers/                 # Transformer-based NER solution
-│   ├── transformer_data_generator.py # BERT-optimized data generator
-│   ├── train_transformer_ner.py     # Multilingual BERT training
-│   ├── inference_example.py         # Model inference examples
-│   ├── models/                       # Trained transformer models
-│   └── output/                       # Generated .json datasets
-├── 📂 database/                     # ✨ NEW: Database integration system
-│   ├── schema.sql                    # Comprehensive database schema
-│   ├── database_manager.py          # Database operations and analytics
-│   └── migrations.py                # Database migration system
-├── 📂 generators/                   # ✨ NEW: Negative examples generation
-│   └── negative_examples_generator.py # Documents without PII entities
-├── 📂 corruption/                   # ✨ NEW: Extreme corruption scenarios
-│   ├── extreme_corruption.py        # Severe OCR degradation simulation
-│   └── corruption_levels.py         # Graduated corruption configurations
-├── 📂 dataset_composer/             # ✨ NEW: Mixed dataset generation
-│   ├── mixed_dataset_generator.py   # Balanced PII/non-PII datasets
-│   └── balance_config.py            # Dataset composition templates
-├── 📂 configs/                      # ✨ NEW: Optimized configurations
-│   ├── optimized_config.cfg         # High-performance spaCy config
-│   ├── fast_config.cfg              # Speed-optimized configuration
-│   └── accurate_config.cfg          # Accuracy-optimized configuration
-├── 📂 examples/                     # ✨ NEW: Complete workflow examples
-│   └── complete_workflow.py         # Demonstration of all features
-├── 📂 docs/                         # Enhanced documentation collection
-│   ├── README.md                     # Documentation index
-│   ├── ENHANCED_FEATURES_GUIDE.md   # ✨ NEW: Complete enhanced features guide
-│   ├── FAILED_SPANS_*.md            # Optimization journey (89% improvement)
-│   ├── OCR_TESTING_GUIDE.md         # Testing tools and validation
-│   └── *.md                         # Analysis and technical documentation
-├── 📄 main_pipeline.py              # ✨ NEW: Unified enhanced pipeline
-└── 📄 notes.txt                    # Development notes
+├── main_pipeline.py              # Main orchestration pipeline
+├── requirements.txt              # Python dependencies
+├── README.md                     # This file
+│
+├── generators/                   # PII generation modules
+│   ├── enhanced_pii_generator.py # Enhanced PII types and variety
+│   └── negative_examples_generator.py
+│
+├── augmentation/                 # NLP augmentation modules
+│   └── nlp_augmentation.py      # NLTK-based augmentation
+│
+├── Spacy/                       # spaCy-specific modules
+│   ├── data_generation_noisy.py # Core spaCy data generator
+│   └── config.cfg               # spaCy training configuration
+│
+├── Transformers/                # Transformer-specific modules
+│   ├── transformer_data_generator.py
+│   └── train_transformer_ner.py
+│
+├── data_spacy/                  # spaCy training data
+│   ├── train/                   # Training data files
+│   ├── dev/                     # Development data files
+│   ├── test/                    # Test data files
+│   └── README.md               # spaCy data format guide
+│
+├── data_transformers/           # Transformers training data
+│   ├── train/                   # Training data files
+│   ├── dev/                     # Development data files
+│   ├── test/                    # Test data files
+│   └── README.md               # Transformers data format guide
+│
+├── database/                    # Database management
+│   ├── database_manager.py     # SQLite database operations
+│   └── schema.sql              # Database schema
+│
+├── corruption/                  # Data corruption modules
+│   └── extreme_corruption.py   # Advanced corruption techniques
+│
+├── dataset_composer/            # Dataset composition
+│   └── mixed_dataset_generator.py
+│
+├── tests/                       # Test suites
+│   └── test_enhanced_pii.py    # Enhanced PII tests
+│
+├── configs/                     # Configuration files
+│   └── optimized_config.cfg    # Optimized spaCy config
+│
+├── docs/                        # Documentation
+│   ├── ARCHITECTURE.md         # System architecture
+│   ├── API_REFERENCE.md        # API documentation
+│   └── USAGE_EXAMPLES.md       # Usage examples
+│
+└── examples/                    # Example scripts
+    └── complete_workflow.py    # Complete workflow example
 ```
 
-## 🚀 Two Powerful Approaches
+## 🛠️ Installation
 
-### 🏆 spaCy Version (Optimized) - `/Spacy/`
-**Best for: Fast inference, production deployment, low memory**
+### Prerequisites
+- Python 3.8 or higher
+- pip package manager
 
-- ✅ **96.8% Entity Success Rate** (3.2% failed spans)
-- ✅ **Zero E1010 Errors** (overlapping spans eliminated)
-- ✅ **Fast Training & Inference** (optimized for speed)
-- ✅ **Small Model Size** (~50MB)
-- ✅ **Simple Deployment** (minimal dependencies)
-
-### 🌟 Transformer Version (New) - `/Transformers/`
-**Best for: Maximum accuracy, multilingual support**
-
-- ✅ **92-96% F1 Score** (superior accuracy)
-- ✅ **Native Multilingual** (Spanish + Portuguese)
-- ✅ **BERT-based** (state-of-the-art architecture)
-- ✅ **Industry Standard** (widely adopted)
-- ✅ **Easy Scaling** (adaptable to new languages)
-
-## 📊 Quick Comparison
-
-| Feature | spaCy Version | Transformer Version |
-|---------|---------------|-------------------|
-| **Accuracy** | Very Good (88-92%) | Excellent (92-96%) |
-| **Speed** | Very Fast | Fast |
-| **Model Size** | Small (50MB) | Large (500MB) |
-| **Memory** | Low | Moderate |
-| **Multilingual** | Good | Excellent |
-| **Deployment** | Simple | Standard |
-
-## 🎯 Choose Your Approach
-
-### 🏃‍♂️ Quick Start - spaCy (Fast & Optimized)
+### Quick Installation
 
 ```bash
-cd Spacy
+# Clone the repository
+git clone https://github.com/andresveraf/DATA_GENERATION.git
+cd DATA_GENERATION
 
-# Generate optimized training data
-python data_generation_noisy.py --examples 50000 --output-dir output
+# Install dependencies
+pip install -r requirements.txt
+
+# Install spaCy language models
+python -m spacy download es_core_news_sm
+python -m spacy download pt_core_news_sm
+
+# Download NLTK data (will be downloaded automatically on first use)
+python -c "import nltk; nltk.download('punkt'); nltk.download('wordnet'); nltk.download('averaged_perceptron_tagger')"
+```
+
+### Development Installation
+
+```bash
+# Install in development mode
+pip install -e .
+
+# Install additional development dependencies
+pip install pytest pytest-cov black flake8
+```
+
+## 🚀 Quick Start
+
+### Basic Usage
+
+```python
+# Generate a mixed dataset with enhanced PII types
+python main_pipeline.py --mode mixed-dataset --size 10000 --composition balanced --export-formats json,spacy
+
+# Generate with NLP augmentation
+python main_pipeline.py --mode mixed-dataset --size 5000 --augmentation-enabled --augmentation-rate 0.3
+
+# Generate country-specific data
+python main_pipeline.py --mode mixed-dataset --size 2000 --country chile --export-formats json,conll
+```
+
+### Advanced Usage
+
+```python
+from generators.enhanced_pii_generator import EnhancedPIIGenerator
+from augmentation.nlp_augmentation import create_augmentator
+
+# Create enhanced PII generator
+generator = EnhancedPIIGenerator()
+
+# Generate all PII types for Chile
+pii_data = generator.generate_all_pii_types('chile')
+print(pii_data)
+
+# Create NLP augmentator
+augmentator = create_augmentator(language="es", synonym_rate=0.3, noise_rate=0.1)
+
+# Augment text while preserving entities
+text = "El cliente Juan Pérez con RUT 12.345.678-9 reside en Santiago."
+entities = [(11, 21, "CUSTOMER_NAME"), (26, 39, "ID_NUMBER"), (50, 58, "ADDRESS")]
+augmented_text, updated_entities = augmentator.augment_text(text, entities)
+```
+
+## 📊 System Architecture
+
+```mermaid
+graph TB
+    A[Main Pipeline] --> B[Enhanced PII Generator]
+    A --> C[NLP Augmentator]
+    A --> D[Database Manager]
+    
+    B --> E[Country-Specific Data]
+    B --> F[12+ PII Types]
+    
+    C --> G[Synonym Replacement]
+    C --> H[Noise Injection]
+    C --> I[OCR Errors]
+    
+    D --> J[SQLite Database]
+    D --> K[Statistics Tracking]
+    
+    A --> L[Export Formats]
+    L --> M[spaCy Binary]
+    L --> N[JSON/CoNLL]
+    L --> O[CSV/Excel]
+    
+    M --> P[data_spacy/]
+    N --> Q[data_transformers/]
+    O --> R[Analysis Files]
+```
+
+## 🎯 Core Functions
+
+### Enhanced PII Generation
+
+```python
+from generators.enhanced_pii_generator import EnhancedPIIGenerator
+
+generator = EnhancedPIIGenerator()
+
+# Generate new PII types
+direction = generator.generate_direction('chile')      # "hacia el centro"
+location = generator.generate_location('chile')       # "Mall Plaza Norte"
+postal_code = generator.generate_postal_code('chile') # "7500000"
+region = generator.generate_region('chile')           # "Región Metropolitana"
+
+# Enhanced existing types
+phone = generator.generate_enhanced_phone('chile')    # "+56 9 1234 5678"
+sequence = generator.generate_enhanced_sequence()     # "REF-12345"
+date = generator.generate_enhanced_date('chile')      # "15/08/2024"
+```
+
+### NLP Augmentation
+
+```python
+from augmentation.nlp_augmentation import NLPAugmentator, AugmentationConfig
+
+# Configure augmentation
+config = AugmentationConfig(
+    synonym_replacement_rate=0.3,  # 30% of non-PII words
+    noise_injection_rate=0.1,      # 10% character noise
+    language="es"
+)
+
+augmentator = NLPAugmentator(config)
+
+# Apply augmentation while preserving PII
+text = "El cliente vive en Santiago y trabaja en una empresa."
+entities = [(50, 58, "ADDRESS")]  # "Santiago"
+
+augmented_text, updated_entities = augmentator.augment_text(text, entities)
+# Result: "El usuario reside en Santiago y labora en una compañía."
+```
+
+### Pipeline Operations
+
+```python
+from main_pipeline import EnhancedPIIDataPipeline
+
+# Initialize pipeline
+pipeline = EnhancedPIIDataPipeline()
+
+# Generate mixed dataset
+dataset = pipeline.generate_mixed_dataset(
+    size=10000,
+    composition_name='balanced',
+    export_formats=['json', 'spacy', 'conll']
+)
+
+# Generate with extreme corruption
+corrupted_dataset = pipeline.generate_extreme_corruption_dataset(
+    base_documents=dataset['train_documents'],
+    corruption_levels=['medium', 'extreme'],
+    samples_per_level=1000
+)
+```
+
+## 📈 Data Quality Metrics
+
+### Variety Validation
+
+```python
+from generators.enhanced_pii_generator import validate_pii_variety
+
+# Validate PII variety for quality assurance
+variety_report = validate_pii_variety('chile', samples=1000)
+
+for pii_type, metrics in variety_report.items():
+    print(f"{pii_type}: {metrics['variety_percentage']:.1f}% variety")
+    print(f"  Sufficient variety: {metrics['sufficient_variety']}")
+```
+
+### Expected Quality Metrics
+- **Variety**: >70% unique values per PII type
+- **Entity Coverage**: All 12 PII types represented
+- **Zero Overlaps**: Guaranteed no E1010 errors
+- **Country Localization**: Authentic formats per country
+- **Augmentation Preservation**: PII entities maintained during augmentation
+
+## 🔧 Configuration Options
+
+### Main Pipeline Configuration
+
+```bash
+# Dataset composition options
+python main_pipeline.py --mode mixed-dataset --composition balanced    # Equal distribution
+python main_pipeline.py --mode mixed-dataset --composition pii-heavy   # More PII entities
+python main_pipeline.py --mode mixed-dataset --composition minimal     # Fewer entities
+
+# Export format options
+--export-formats json              # JSON format only
+--export-formats spacy             # spaCy binary format
+--export-formats json,spacy,conll  # Multiple formats
+--export-formats csv,excel         # Analysis formats
+
+# Country-specific generation
+--country chile                    # Chile only
+--country mexico                   # Mexico only
+--country all                      # All countries
+
+# Augmentation options
+--augmentation-enabled             # Enable NLP augmentation
+--augmentation-rate 0.3            # 30% augmentation rate
+--augmentation-types synonyms,noise # Specific augmentation types
+```
+
+### spaCy Training Configuration
+
+```bash
+# Generate spaCy training data
+python main_pipeline.py --mode mixed-dataset --size 20000 --export-formats spacy --output-dir data_spacy/
 
 # Train spaCy model
-python -m spacy train config.cfg --output models
-
-# Test entity preservation
-python test_entity_preservation.py
+python -m spacy train configs/optimized_config.cfg --output ./models --paths.train ./data_spacy/train.spacy --paths.dev ./data_spacy/dev.spacy
 ```
 
-### 🤖 Quick Start - Transformers (Maximum Accuracy)
+### Transformers Training Configuration
 
 ```bash
-cd Transformers
+# Generate transformer training data
+python main_pipeline.py --mode mixed-dataset --size 15000 --export-formats json,conll --output-dir data_transformers/
 
-# Quick test (recommended first step)
-python quick_test.py
-
-# Generate production dataset
-python transformer_data_generator.py --train-size 50000 --dev-size 10000
-
-# Train BERT model
-python train_transformer_ner.py --epochs 5
+# Train transformer model
+cd Transformers/
+python train_transformer_ner.py --data_dir ../data_transformers/ --model_name dccuchile/bert-base-spanish-wwm-uncased
 ```
 
-## 🎯 Supported Features
+## 🧪 Testing
 
-✅ **Multi-country support**: Chile, Mexico, Brazil, Uruguay  
-✅ **Multilingual**: Spanish and Portuguese  
-✅ **7 Entity Types**: CUSTOMER_NAME, ID_NUMBER, ADDRESS, PHONE_NUMBER, EMAIL, AMOUNT, SEQ_NUMBER  
-✅ **Realistic OCR noise**: Character corruption, scanning artifacts, symbol errors  
-✅ **Entity preservation**: Maintains PII boundaries for NER training  
-✅ **Format variations**: Multiple ID number formats (commas, periods, no separators)  
-✅ **Two Training Approaches**: spaCy (fast) and Transformers (accurate)  
-✅ **Production Ready**: Complete pipelines with documentation  
-✅ **Comprehensive testing**: Entity-aware validation tools  
+### Run All Tests
 
-## 🔧 System Requirements
+```bash
+# Run comprehensive test suite
+python -m pytest tests/ -v
 
-**Common Requirements:**
-- Python 3.8+
-- pandas, numpy
-- Standard libraries: random, re, json, argparse
+# Run specific test modules
+python tests/test_enhanced_pii.py
 
-**spaCy Version (`/Spacy/`):**
-- spaCy 3.4+ with Spanish model (`es_core_news_lg`)
-- openpyxl for Excel export
+# Run with coverage
+python -m pytest tests/ --cov=generators --cov=augmentation --cov-report=html
+```
 
-**Transformer Version (`/Transformers/`):**
-- transformers 4.21+
-- torch 1.9+
-- datasets 2.0+
+### Manual Testing
 
-## 📊 Generated Output
+```python
+# Test enhanced PII generation
+python -c "
+from generators.enhanced_pii_generator import EnhancedPIIGenerator
+generator = EnhancedPIIGenerator()
+pii_data = generator.generate_all_pii_types('chile')
+for pii_type, value in pii_data.items():
+    print(f'{pii_type}: {value}')
+"
 
-**spaCy Version:**
-- **spaCy DocBin files**: Ready for NER model training (`.spacy` format)
-- **Excel exports**: For quality review and validation
-- **JSON statistics**: Detailed success rate analysis
+# Test NLP augmentation
+python -c "
+from augmentation.nlp_augmentation import create_augmentator
+augmentator = create_augmentator()
+text = 'El cliente Juan Pérez vive en Santiago.'
+entities = [(11, 21, 'CUSTOMER_NAME'), (31, 39, 'ADDRESS')]
+augmented, _ = augmentator.augment_text(text, entities)
+print(f'Original: {text}')
+print(f'Augmented: {augmented}')
+"
+```
 
-**Transformer Version:**
-- **JSON datasets**: Training and development sets with BIO labels
-- **Trained models**: BERT-based multilingual NER models
-- **Evaluation metrics**: Comprehensive F1 scores and entity analysis
+## 📚 Usage Examples
 
-## 📋 Documentation Structure
+### Example 1: Basic Dataset Generation
 
-| Location | Description |
-|----------|-------------|
-| `README.md` | This overview (you are here) |
-| [`docs/`](docs/) | **Complete documentation collection** |
-| [`docs/README.md`](docs/README.md) | Documentation index and reading guide |
-| [`Spacy/README.md`](Spacy/README.md) | Complete spaCy solution guide |
-| [`Transformers/README.md`](Transformers/README.md) | Complete Transformer solution guide |
+```python
+from main_pipeline import EnhancedPIIDataPipeline
 
-### 📚 Key Documentation in `/docs/`
+# Create pipeline
+pipeline = EnhancedPIIDataPipeline()
 
-| File | Purpose |
-|------|---------|
-| [`docs/OCR_TESTING_GUIDE.md`](docs/OCR_TESTING_GUIDE.md) | OCR testing tools and validation |
-| [`docs/DATA_GENERATION_DOCUMENTATION.md`](docs/DATA_GENERATION_DOCUMENTATION.md) | Original system documentation |
-| [`docs/FAILED_SPANS_*.md`](docs/) | **Optimization journey** (89% improvement) |
-| [`docs/PROJECT_ORGANIZATION.md`](docs/PROJECT_ORGANIZATION.md) | Project structure documentation |
-| `notes.txt` | Development notes and requirements |
+# Generate balanced dataset
+dataset = pipeline.generate_mixed_dataset(
+    size=5000,
+    composition_name='balanced',
+    output_dir='output/',
+    export_formats=['json', 'spacy']
+)
 
-## 🎯 Which Approach to Choose?
+print(f"Generated {len(dataset['train_documents'])} training documents")
+print(f"Generated {len(dataset['dev_documents'])} development documents")
+```
 
-### Choose **spaCy Version** (`/Spacy/`) when you need:
-- ⚡ **Fast inference** in production
-- 💾 **Small model size** for deployment  
-- 🛠️ **Simple deployment** with minimal dependencies
-- 🚀 **Quick training** for rapid iteration
-- 💻 **Low memory usage** in constrained environments
+### Example 2: Country-Specific Generation with Augmentation
 
-### Choose **Transformer Version** (`/Transformers/`) when you need:
-- 🎯 **Maximum accuracy** for critical applications
-- 🌍 **Better multilingual** understanding
-- 🔬 **Latest NLP techniques** (attention mechanisms)
-- 🏢 **Industry standard** approaches
-- 📈 **Easy scaling** to new languages/domains
+```python
+from generators.enhanced_pii_generator import EnhancedPIIGenerator
+from augmentation.nlp_augmentation import create_augmentator
 
-## 💡 Getting Started Recommendations
+# Generate Chilean PII data
+generator = EnhancedPIIGenerator()
+pii_data = generator.generate_all_pii_types('chile')
 
-1. **First Time Users**: Start with `cd Transformers && python quick_test.py`
-2. **Production Speed**: Use `cd Spacy && python data_generation_noisy.py`
-3. **Maximum Accuracy**: Use `cd Transformers && source workflow.sh && production_workflow`
-4. **Compare Both**: Run both approaches and compare results
+# Create training sentence
+text = f"Cliente {pii_data['CUSTOMER_NAME']} con {pii_data['ID_NUMBER']} reside en {pii_data['ADDRESS']}."
 
-## 🎉 Recent Achievements
+# Define entities
+entities = [
+    (8, 8 + len(pii_data['CUSTOMER_NAME']), "CUSTOMER_NAME"),
+    (13 + len(pii_data['CUSTOMER_NAME']), 13 + len(pii_data['CUSTOMER_NAME']) + len(pii_data['ID_NUMBER']), "ID_NUMBER"),
+    (25 + len(pii_data['CUSTOMER_NAME']) + len(pii_data['ID_NUMBER']), 25 + len(pii_data['CUSTOMER_NAME']) + len(pii_data['ID_NUMBER']) + len(pii_data['ADDRESS']), "ADDRESS")
+]
 
-### spaCy Optimization Success
-- 🏆 **89% Improvement**: Failed spans reduced from 31.7% to 3.2%
-- 🎯 **Zero E1010 Errors**: Perfect overlap handling
-- 📈 **Enhanced Templates**: 20 diverse sentence patterns
-- 🔍 **5-Strategy Detection**: Robust entity recognition
+# Apply augmentation
+augmentator = create_augmentator(language="es", synonym_rate=0.3)
+augmented_text, updated_entities = augmentator.augment_text(text, entities)
 
-### Transformer Implementation
-- 🤖 **Complete Pipeline**: From data generation to inference
-- 🌍 **Multilingual BERT**: Native Spanish/Portuguese support
-- 🛠️ **Production Ready**: Comprehensive workflows and documentation
-- 📊 **Expected 92-96% F1**: State-of-the-art accuracy
+print(f"Original: {text}")
+print(f"Augmented: {augmented_text}")
+```
 
-Both solutions are **production-ready** and extensively documented! 🚀
+### Example 3: Batch Processing with Quality Validation
 
-- **spaCy DocBin files**: Ready for NER model training
-- **Excel files**: For human review and quality control
-- **Console statistics**: Entity counts, corruption rates, preservation metrics
+```python
+from generators.enhanced_pii_generator import validate_pii_variety
+from main_pipeline import EnhancedPIIDataPipeline
 
-This system generates production-ready training data that matches real-world OCR document corruption patterns while preserving entity boundaries for successful NER model training.
+# Generate large dataset
+pipeline = EnhancedPIIDataPipeline()
+dataset = pipeline.generate_mixed_dataset(size=10000, composition_name='balanced')
+
+# Validate quality
+variety_report = validate_pii_variety('chile', samples=1000)
+
+# Print quality metrics
+print("Quality Validation Report:")
+print("-" * 40)
+for pii_type, metrics in variety_report.items():
+    status = "✓" if metrics['sufficient_variety'] else "✗"
+    print(f"{status} {pii_type}: {metrics['variety_percentage']:.1f}% variety")
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+1. **NLTK Data Missing**
+   ```bash
+   python -c "import nltk; nltk.download('punkt'); nltk.download('wordnet')"
+   ```
+
+2. **spaCy Model Missing**
+   ```bash
+   python -m spacy download es_core_news_sm
+   python -m spacy download pt_core_news_sm
+   ```
+
+3. **Import Errors**
+   ```bash
+   # Ensure project root is in Python path
+   export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+   ```
+
+4. **Database Permissions**
+   ```bash
+   # Ensure write permissions for database directory
+   chmod 755 database/
+   ```
+
+### Performance Optimization
+
+- **Large Datasets**: Use batch processing with `--batch-size` parameter
+- **Memory Usage**: Enable garbage collection with `--gc-enabled`
+- **Parallel Processing**: Use `--workers` parameter for multi-processing
+- **Database Optimization**: Use `--db-batch-size` for bulk inserts
+
+## 🤝 Contributing
+
+### Development Setup
+
+```bash
+# Fork and clone the repository
+git clone https://github.com/yourusername/DATA_GENERATION.git
+cd DATA_GENERATION
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install in development mode
+pip install -e .
+pip install -r requirements.txt
+
+# Install development dependencies
+pip install pytest pytest-cov black flake8 mypy
+
+# Run tests
+python -m pytest tests/
+```
+
+### Code Style
+
+```bash
+# Format code
+black generators/ augmentation/ tests/
+
+# Check style
+flake8 generators/ augmentation/ tests/
+
+# Type checking
+mypy generators/ augmentation/
+```
+
+### Submitting Changes
+
+1. Create a feature branch: `git checkout -b feature/new-pii-type`
+2. Make your changes and add tests
+3. Run the test suite: `python -m pytest tests/`
+4. Format your code: `black .`
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👥 Authors
+
+- **Andrés Vera Figueroa** - *Original Author* - [andresveraf](https://github.com/andresveraf)
+- **Codegen AI** - *Enhanced Features* - Enhanced PII types, NLP augmentation, and comprehensive documentation
+
+## 🙏 Acknowledgments
+
+- spaCy team for the excellent NLP framework
+- Hugging Face for transformer models and datasets library
+- NLTK team for natural language processing tools
+- The open-source community for inspiration and feedback
+
+## 📞 Support
+
+For questions, issues, or contributions:
+
+- **Issues**: [GitHub Issues](https://github.com/andresveraf/DATA_GENERATION/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/andresveraf/DATA_GENERATION/discussions)
+- **Email**: Contact through GitHub profile
+
+---
+
+**Made with ❤️ for the NLP and AI community**
