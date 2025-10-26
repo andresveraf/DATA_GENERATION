@@ -465,13 +465,28 @@ def main():
     parser.add_argument('--corruption-level', default='medium', help='Corruption level for extreme corruption')
     parser.add_argument('--doc-types', default='invoice,report,form,legal', help='Document types for negative examples')
     parser.add_argument('--output-dir', default='output', help='Output directory')
-    parser.add_argument('--export-formats', default='json', help='Export formats (comma-separated)')
+    parser.add_argument('--export-formats', default='json', 
+                        help='Export formats (comma-separated): json, spacy, transformers, csv. Examples: "json,spacy", "transformers", "json,spacy,transformers"')
     parser.add_argument('--language', default='es', help='Language (es/pt)')
     parser.add_argument('--config-path', default='Spacy/config.cfg', help='spaCy config output path')
     parser.add_argument('--optimization-level', default='balanced', help='spaCy optimization level')
     parser.add_argument('--store-db', action='store_true', help='Store results in database')
     
     args = parser.parse_args()
+    
+    # Smart output directory defaults based on export formats
+    export_formats = args.export_formats.split(',')
+    output_dir = args.output_dir
+    
+    # If user didn't specify custom output dir and is using specific formats, suggest appropriate directories
+    if args.output_dir == 'output':  # Default value
+        if len(export_formats) == 1:
+            if 'spacy' in export_formats:
+                output_dir = 'data_spacy'
+                print(f"📁 Using spaCy output directory: {output_dir}")
+            elif any(fmt in export_formats for fmt in ['transformers', 'conll', 'bio']):
+                output_dir = 'data_transformers'
+                print(f"📁 Using Transformers output directory: {output_dir}")
     
     # Initialize pipeline
     config = {
@@ -486,8 +501,8 @@ def main():
             dataset = pipeline.generate_mixed_dataset(
                 size=args.size,
                 composition_name=args.composition,
-                output_dir=args.output_dir,
-                export_formats=args.export_formats.split(',')
+                output_dir=output_dir,
+                export_formats=export_formats
             )
             print(f"Generated mixed dataset: {len(dataset['train_documents'])} train, {len(dataset['dev_documents'])} dev")
         
@@ -550,4 +565,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

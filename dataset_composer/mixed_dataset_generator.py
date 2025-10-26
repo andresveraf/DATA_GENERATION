@@ -36,6 +36,9 @@ from collections import defaultdict, Counter
 from pathlib import Path
 import logging
 
+# Import format converters
+from .format_converters import SpacyFormatConverter, TransformersFormatConverter
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -549,11 +552,33 @@ class MixedDatasetGenerator:
                 exported_files['json'] = str(file_path)
             
             elif format_type == 'spacy':
-                # Export spaCy format (would need spaCy integration)
-                train_path = output_path / 'mixed_train.spacy'
-                dev_path = output_path / 'mixed_dev.spacy'
-                exported_files['spacy_train'] = str(train_path)
-                exported_files['spacy_dev'] = str(dev_path)
+                # Export spaCy format using format converter
+                try:
+                    spacy_converter = SpacyFormatConverter(language='es')
+                    
+                    # Convert and save train data
+                    train_path = output_path / 'train.spacy'
+                    if dataset.get('train_documents'):
+                        success_train = spacy_converter.convert_and_save(
+                            dataset['train_documents'], str(train_path)
+                        )
+                        if success_train:
+                            exported_files['spacy_train'] = str(train_path)
+                    
+                    # Convert and save dev data
+                    dev_path = output_path / 'dev.spacy'
+                    if dataset.get('dev_documents'):
+                        success_dev = spacy_converter.convert_and_save(
+                            dataset['dev_documents'], str(dev_path)
+                        )
+                        if success_dev:
+                            exported_files['spacy_dev'] = str(dev_path)
+                    
+                    logger.info(f"spaCy export completed: train={train_path.exists()}, dev={dev_path.exists()}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to export spaCy format: {e}")
+                    # Continue with other formats even if spaCy export fails
             
             elif format_type == 'csv':
                 # Export CSV format for analysis
@@ -575,6 +600,35 @@ class MixedDatasetGenerator:
                 csv_path = output_path / 'mixed_dataset.csv'
                 df.to_csv(csv_path, index=False)
                 exported_files['csv'] = str(csv_path)
+            
+            elif format_type in ['transformers', 'conll', 'bio']:
+                # Export Transformers/CONLL format using format converter
+                try:
+                    transformers_converter = TransformersFormatConverter(tokenization_method='whitespace')
+                    
+                    # Convert and save train data
+                    train_path = output_path / 'train.conll'
+                    if dataset.get('train_documents'):
+                        success_train = transformers_converter.convert_and_save(
+                            dataset['train_documents'], str(train_path)
+                        )
+                        if success_train:
+                            exported_files['transformers_train'] = str(train_path)
+                    
+                    # Convert and save dev data
+                    dev_path = output_path / 'dev.conll'
+                    if dataset.get('dev_documents'):
+                        success_dev = transformers_converter.convert_and_save(
+                            dataset['dev_documents'], str(dev_path)
+                        )
+                        if success_dev:
+                            exported_files['transformers_dev'] = str(dev_path)
+                    
+                    logger.info(f"Transformers export completed: train={train_path.exists()}, dev={dev_path.exists()}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to export Transformers format: {e}")
+                    # Continue with other formats even if Transformers export fails
         
         return exported_files
     
@@ -609,4 +663,3 @@ class MixedDatasetGenerator:
             errors.append("Ratios cannot be negative")
         
         return len(errors) == 0, errors
-
