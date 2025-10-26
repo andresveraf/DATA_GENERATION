@@ -13,7 +13,7 @@ A comprehensive system for generating realistic PII (Personally Identifiable Inf
 - **Enhanced PII Types**: 12+ entity types including traditional and location-based PII
 - **Advanced NLP Augmentation**: NLTK-based synonym replacement and noise injection
 - **Zero Overlapping Entities**: Guaranteed E1010 error prevention
-- **Dual Framework Support**: Both spaCy and Transformers training formats
+- **🔄 Dual Framework Support**: Export to spaCy (.spacy) and Transformers (CONLL/BIO) formats
 - **Database Integration**: Comprehensive tracking and statistics
 - **Quality Validation**: Built-in variety and quality metrics
 
@@ -137,15 +137,18 @@ pip install pytest pytest-cov black flake8
 
 ### Basic Usage
 
-```python
-# Generate a mixed dataset with enhanced PII types
-python main_pipeline.py --mode mixed-dataset --size 10000 --composition balanced --export-formats json,spacy
+```bash
+# 🔵 Generate spaCy format data
+python main_pipeline.py --mode mixed-dataset --size 10000 --export-formats spacy --output-dir data_spacy/
 
-# Generate with NLP augmentation
-python main_pipeline.py --mode mixed-dataset --size 5000 --augmentation-enabled --augmentation-rate 0.3
+# 🟢 Generate Transformers format data  
+python main_pipeline.py --mode mixed-dataset --size 10000 --export-formats transformers --output-dir data_transformers/
 
-# Generate country-specific data
-python main_pipeline.py --mode mixed-dataset --size 2000 --country chile --export-formats json,conll
+# 📊 Generate both formats simultaneously
+python main_pipeline.py --mode mixed-dataset --size 10000 --export-formats spacy,transformers --composition balanced
+
+# 🌎 Generate country-specific data
+python main_pipeline.py --mode mixed-dataset --size 5000 --export-formats json,transformers --composition chile_focused
 ```
 
 ### Advanced Usage
@@ -298,9 +301,10 @@ python main_pipeline.py --mode mixed-dataset --composition minimal     # Fewer e
 
 # Export format options
 --export-formats json              # JSON format only
---export-formats spacy             # spaCy binary format
---export-formats json,spacy,conll  # Multiple formats
---export-formats csv,excel         # Analysis formats
+--export-formats spacy             # spaCy binary format (.spacy)
+--export-formats transformers      # CONLL/BIO format (.conll)
+--export-formats json,spacy,transformers  # Multiple formats
+--export-formats csv               # Analysis format
 
 # Country-specific generation
 --country chile                    # Chile only
@@ -311,6 +315,40 @@ python main_pipeline.py --mode mixed-dataset --composition minimal     # Fewer e
 --augmentation-enabled             # Enable NLP augmentation
 --augmentation-rate 0.3            # 30% augmentation rate
 --augmentation-types synonyms,noise # Specific augmentation types
+```
+
+## 📋 Format Specifications
+
+### 🔵 spaCy Format (.spacy)
+- **Format**: DocBin binary format optimized for spaCy v3+
+- **Structure**: Serialized Doc objects with character-level entity spans
+- **Files**: `train.spacy`, `dev.spacy`
+- **Usage**: Direct loading into spaCy training pipeline
+- **Advantages**: Fast loading, memory efficient, preserves tokenization
+
+```python
+# Loading spaCy format
+import spacy
+from spacy.tokens import DocBin
+
+nlp = spacy.blank("es")
+doc_bin = DocBin().from_disk("data_spacy/train.spacy")
+docs = list(doc_bin.get_docs(nlp.vocab))
+```
+
+### 🟢 Transformers Format (.conll)
+- **Format**: CONLL-2003 format with BIO tagging scheme
+- **Structure**: Word-level tokens with BIO tags (tab-separated)
+- **Files**: `train.conll`, `dev.conll`
+- **Usage**: Compatible with HuggingFace Transformers, spaCy, AllenNLP
+- **Tagging**: B-LABEL (Beginning), I-LABEL (Inside), O (Outside)
+
+```
+Juan	B-CUSTOMER_NAME
+Pérez	I-CUSTOMER_NAME
+vive	O
+en	O
+Santiago	B-ADDRESS
 ```
 
 ### spaCy Training Configuration

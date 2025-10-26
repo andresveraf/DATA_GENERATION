@@ -1,33 +1,38 @@
 # Transformers Training Data Directory
 
-This directory contains training data formatted for Transformer-based NER model training (BERT, RoBERTa, etc.).
+This directory contains training data formatted for Transformer-based NER model training using **CONLL/BIO tagging format**.
+
+## 🎯 Quick Start
+
+Generate Transformers format data:
+```bash
+python main_pipeline.py --mode mixed-dataset --size 10000 --export-formats transformers --output-dir data_transformers/
+```
 
 ## Directory Structure
 
 ```
 data_transformers/
-├── train/          # Training data files
-├── dev/            # Development/validation data files  
-├── test/           # Test data files
+├── train.conll     # CONLL format training data (BIO tagging)
+├── dev.conll       # CONLL format development data (BIO tagging)
+├── mixed_dataset.json  # Optional JSON export
 └── README.md       # This file
 ```
 
 ## Data Formats
 
-### JSON Format (.json)
-- `train.json` - JSON format training data for Hugging Face
-- `dev.json` - JSON format development data
-- `test.json` - JSON format test data
+### 🟢 CONLL Format (.conll) - **Primary Format**
+The `.conll` files use the standard CONLL-2003 format with BIO tagging:
 
-### CoNLL Format (.conll)
-- `train.conll` - CoNLL-2003 format training data
-- `dev.conll` - CoNLL-2003 format development data
-- `test.conll` - CoNLL-2003 format test data
+- **train.conll** - Training data with word-level BIO tags
+- **dev.conll** - Development/validation data
+- **Format**: One word-tag pair per line, blank lines separate documents
+- **Tagging Scheme**: BIO (Beginning-Inside-Outside)
+- **Compatible with**: HuggingFace Transformers, spaCy, AllenNLP
 
-### CSV Format (.csv)
-- `train.csv` - CSV format for easy inspection
-- `dev.csv` - CSV format development data
-- `test.csv` - CSV format test data
+### 📄 JSON Format (.json) - **Optional**
+- **mixed_dataset.json** - Human-readable JSON format (if requested)
+- **Structure**: Documents with character-level entity spans
 
 ## JSON Format Structure (Hugging Face Compatible)
 
@@ -39,15 +44,17 @@ data_transformers/
 }
 ```
 
-## CoNLL Format Structure
+## 📋 CONLL Format Structure
+
+The CONLL format uses BIO tagging with tab-separated values:
 
 ```
-El O
-cliente O
-Juan B-CUSTOMER_NAME
-Pérez I-CUSTOMER_NAME
-con O
-RUT O
+El	O
+cliente	O
+Juan	B-CUSTOMER_NAME
+Pérez	I-CUSTOMER_NAME
+con	O
+RUT	O
 12.345.678-9 B-ID_NUMBER
 reside O
 en O
@@ -121,18 +128,9 @@ trainer = Trainer(
 trainer.train()
 ```
 
-### Using the Project Pipeline
+## 🔧 Loading CONLL Data
 
-```bash
-# Generate transformer training data
-python main_pipeline.py --mode mixed-dataset --size 10000 --export-formats json,conll --output-dir data_transformers/
-
-# Train using the transformer module
-cd Transformers/
-python train_transformer_ner.py --data_dir ../data_transformers/ --model_name dccuchile/bert-base-spanish-wwm-uncased
-```
-
-### Loading CoNLL Data
+### Loading .conll Files in Python
 
 ```python
 def load_conll_data(file_path):
@@ -164,6 +162,45 @@ def load_conll_data(file_path):
 
 # Usage
 sentences, labels = load_conll_data('data_transformers/train.conll')
+print(f"Loaded {len(sentences)} sentences")
+print(f"First sentence: {sentences[0]}")
+print(f"First labels: {labels[0]}")
+```
+
+### Using with HuggingFace Datasets
+
+```python
+from datasets import Dataset
+
+def conll_to_dataset(file_path):
+    sentences, labels = load_conll_data(file_path)
+    return Dataset.from_dict({
+        'tokens': sentences,
+        'ner_tags': labels
+    })
+
+# Load as HuggingFace dataset
+train_dataset = conll_to_dataset('data_transformers/train.conll')
+dev_dataset = conll_to_dataset('data_transformers/dev.conll')
+```
+
+## 📊 Usage Examples
+
+Generate Transformers training data:
+
+```bash
+# Generate CONLL format for transformers
+python main_pipeline.py --mode mixed-dataset --size 10000 --export-formats transformers --output-dir data_transformers/
+
+# Generate with specific composition
+python main_pipeline.py --mode mixed-dataset --size 5000 --composition balanced --export-formats transformers
+
+# Generate both CONLL and JSON formats
+python main_pipeline.py --mode mixed-dataset --size 15000 --export-formats transformers,json --output-dir data_transformers/
+
+# Train using the transformer module
+cd Transformers/
+python train_transformer_ner.py --data_dir ../data_transformers/ --model_name dccuchile/bert-base-spanish-wwm-uncased
 ```
 
 ## Recommended Models
