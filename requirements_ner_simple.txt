@@ -1,0 +1,5 @@
+# Requirements for the simple NER dataset generation script
+# Install with: pip install -r requirements_ner_simple.txt
+
+faker>=20.0.0
+
